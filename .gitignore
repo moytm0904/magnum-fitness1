@@ -14,8 +14,7 @@ logs/
 Thumbs.db
 portal.db
 
-# Registros de error de NPM
-npm-debug.log*# Archivos temporales
+# Archivos temporales
 tmp/
 temp/
 *.tmp
