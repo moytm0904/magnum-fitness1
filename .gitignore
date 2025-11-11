@@ -1,0 +1,11 @@
+# Archivos de entorno (¡Contiene tus contraseñas!)
+.env
+
+# Base de datos local (ya no la usaremos)
+portal.db
+
+# Carpeta de módulos de Node (pesadísima e innecesaria)
+node_modules/
+
+# Registros de error de NPM
+npm-debug.log*

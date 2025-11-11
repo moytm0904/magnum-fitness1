@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verifica tu Correo</title>
+    <style>
+        :root {
+            --color-bg-dark: #1e1e1e; --color-bg-card: #2d2d30; --color-text-light: #f0f0f0; --color-text-secondary: #aaaaaa;
+            --color-text-title: #f7a610; --color-border: #444444; --color-button-primary: #f7a610;
+        }
+        body {
+            font-family: Arial, sans-serif; margin: 0; background-color: var(--color-bg-dark); color: var(--color-text-light);
+            display: flex; justify-content: center; align-items: center; min-height: 100vh; text-align: center; padding: 20px;
+        }
+        .verify-container {
+            background-color: var(--color-bg-card); padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            width: 100%; max-width: 500px;
+        }
+        .verify-container h1 {
+            color: var(--color-text-title); font-size: 2.2em; margin-top: 0; margin-bottom: 20px; font-weight: normal;
+        }
+        .verify-container p {
+            color: var(--color-text-secondary); font-size: 1.1em; line-height: 1.6; margin-bottom: 30px;
+        }
+        .verify-container #userEmail {
+            color: var(--color-text-light); font-weight: bold;
+        }
+        .login-link a {
+            color: var(--color-text-title); text-decoration: none; font-weight: bold; font-size: 1em;
+            padding: 10px 20px; border: 1px solid var(--color-text-title); border-radius: 5px;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        .login-link a:hover {
+            background-color: var(--color-text-title);
+            color: var(--color-bg-dark);
+        }
+    </style>
+</head>
+<body>
+    <div class="verify-container">
+        <h1>¡Revisa tu correo! 📧</h1>
+        <p>
+            Hemos enviado un enlace de verificación a <b id="userEmail">tu correo</b>.
+            Por favor, haz clic en él para activar tu cuenta antes de iniciar sesión.
+        </p>
+        <div class="login-link">
+            <a href="login.html">Ir a Iniciar Sesión</a>
+        </div>
+    </div>
+    <script>
+        // Muestra el correo que se guardó en la página de registro
+        document.getElementById('userEmail').textContent = localStorage.getItem('verificationEmail') || 'tu correo';
+    </script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+<div class="modal fade" id="productDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content" style="background-color: var(--card); border: 1px solid var(--border-color);">
+            <div class="modal-header">
+                <h5 class="modal-title" id="product-detail-title">Detalles del Producto</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <img id="product-detail-img" src="" class="img-fluid rounded" alt="Imagen de producto">
+                    </div>
+                    <div class="col-md-6">
+                        <h2 id="product-detail-name">Nombre del Producto</h2>
+                        <div class="d-flex align-items-center mb-2">
+                            <div id="product-detail-stars-avg" class="star-rating me-2"></div>
+                            <span id="product-detail-review-count" class_alias="text-muted">(0 reseñas)</span>
+                        </div>
+                        <p id="product-detail-desc" class="text-muted"></p>
+                        <h3 id="product-detail-price" class="price">$0.00 MXN</h3>
+                        <button class="btn btn-accent w-100 add-to-cart-from-modal" id="product-detail-add-btn">
+                            <i class="bi bi-cart-plus-fill"></i> Agregar al Carrito
+                        </button>
+                    </div>
+                </div>
+
+                <hr class="border-secondary my-4">
+
+                <div class="row">
+                    <div class="col-12">
+                        <h4>Reseñas de Usuarios</h4>
+                        
+                        <form id="reviewForm" class="p-3 mb-4" style="background-color: var(--bg); border-radius: 8px; display: none;">
+                            <h5>Escribe tu reseña</h5>
+                            <div class="mb-2">
+                                <label class="form-label">Tu Calificación (1-5 estrellas):</label>
+                                <div class="star-rating-input">
+                                    <input type="radio" id="star5" name="rating" value="5" /><label for="star5" title="5 estrellas"></label>
+                                    <input type="radio" id="star4" name="rating" value="4" /><label for="star4" title="4 estrellas"></label>
+                                    <input type="radio" id="star3" name="rating" value="3" /><label for="star3" title="3 estrellas"></label>
+                                    <input type="radio" id="star2" name="rating" value="2" /><label for="star2" title="2 estrellas"></label>
+                                    <input type="radio" id="star1" name="rating" value="1" required /><label for="star1" title="1 estrella"></label>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="review-comment" class="form-label">Comentario:</label>
+                                <textarea class="form-control" id="review-comment" name="comment" rows="3" required></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label for="review-image" class="form-label">Subir Foto (Opcional):</label>
+                                <input class="form-control" type="file" id="review-image" name="review-image" accept="image/*">
+                            </div>
+                            <div class="mb-3">
+                                <label for="review-video" class="form-label">Subir Video (Opcional):</label>
+                                <input class="form-control" type="file" id="review-video" name="review-video" accept="video/*">
+                            </div>
+                            <button type="submit" class="btn btn-accent">Publicar Reseña</button>
+                        </form>
+                        
+                        <div id="review-list-container" style="max-height: 400px; overflow-y: auto;">
+                            </div>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+</div>

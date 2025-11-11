@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Magnum Fitness</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Teko:wght@500;700&display=swap" rel="stylesheet">
+    
+    <script src="https://www.paypal.com/sdk/js?client-id=AT16Qo7wfSCrBn9YBDsi-GfsTTI4ce411w4BM2GMNNM-iaVRajGBBC_VfvQFiNbiYDk4IzlJ1sXgigLc&currency=MXN"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+    <link rel="stylesheet" href="assets/css/main.css">
+</head>
+<body>
+
+    <header id="navbar-container"></header>
+    
+    <main>
+        <div id="hero-container"></div>
+        <div id="products-container"></div>
+        <div id="about-container"></div>
+    </main>
+
+    <div id="cart-modal-container"></div>
+    <div id="pdf-viewer-container"></div>
+    <div id="toast-container"></div> <div id="purchased-modal-container"></div>
+    <div id="product-detail-modal-container"></div>
+    
+    <footer id="footer-container"></footer>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
+    
+    <script>
+        // Función para cargar componentes HTML
+        async function loadComponent(url, targetId) {
+            try {
+                const response = await fetch(url);
+                const text = await response.text();
+                document.getElementById(targetId).innerHTML = text;
+            } catch (error) {
+                console.error(`Error al cargar el componente ${url}:`, error);
+            }
+        }
+
+        // Cargar todos los componentes y LUEGO inicializar el script principal
+        async function initializePage() {
+            await Promise.all([
+                loadComponent('components/_navbar.html', 'navbar-container'),
+                loadComponent('components/_hero.html', 'hero-container'),
+                loadComponent('components/_products.html', 'products-container'),
+                loadComponent('components/_about.html', 'about-container'),
+                loadComponent('components/_footer.html', 'footer-container'),
+                loadComponent('components/_cart-modal.html', 'cart-modal-container'),
+                loadComponent('components/_pdf-viewer-modal.html', 'pdf-viewer-container'),
+                loadComponent('components/_toast.html', 'toast-container'), // <-- LÍNEA AÑADIDA
+                loadComponent('components/_already-purchased-modal.html', 'purchased-modal-container'),
+                loadComponent('components/_product-detail-modal.html', 'product-detail-modal-container')
+            ]);
+            
+            const mainScript = document.createElement('script');
+            mainScript.src = 'assets/js/main.js';
+            mainScript.onload = () => {
+                main(); // Llama a la función principal DESPUÉS de que el script se cargue
+            };
+            document.body.appendChild(mainScript);
+        }
+
+        // Iniciar todo el proceso cuando el DOM esté listo
+        document.addEventListener('DOMContentLoaded', initializePage);
+    </script>
+
+</body>
+</html>

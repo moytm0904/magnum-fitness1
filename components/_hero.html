@@ -1,0 +1,46 @@
+<head>
+    <style>
+        /* ... (Tus estilos existentes) ... */
+
+        .hero {
+            background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('https://images.pexels.com/photos/1552242/pexels-photo-1552242.jpeg') center/cover no-repeat;
+            
+            /* --- CAMBIOS AQUÍ --- */
+            min-height: 90vh; /* Usa min-height en lugar de height para mejor flexibilidad */
+            display: flex;
+            flex-direction: column;
+            justify-content: center; /* Centra verticalmente */
+            align-items: center;     /* Centra horizontalmente */
+            text-align: center;
+            padding: 0 1rem;
+        }
+
+        .hero h1 {
+            font-family: 'Teko', sans-serif;
+            font-size: 5rem;
+            font-weight: 700;
+            text-shadow: 0 4px 15px var(--shadow-color);
+            letter-spacing: 2px;
+            line-height: 1.1;
+        }
+
+        .hero p {
+            color: var(--muted);
+            font-size: 1.1rem;
+            max-width: 600px;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <section id="inicio" class="hero">
+        <div class="container" data-aos="fade-up">
+            <h1>FORJA TU MEJOR VERSIÓN</h1>
+            <p>Planes de élite, rutinas efectivas y productos de calidad para llevar tu físico al siguiente nivel.</p>
+            <div class="d-flex justify-content-center gap-3 mt-4">
+                <a href="#planes" class="btn btn-accent">Ver Planes</a>
+                <a href="#productos" class="btn btn-outline-light">Ver Productos</a>
+            </div>
+        </div>
+    </section>
+</body>

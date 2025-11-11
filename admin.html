@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Administrador - Magnum Fitness</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Teko:wght@500;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <link rel="stylesheet" href="assets/css/main.css">
+    <style>
+        /* Estilos específicos para el panel de admin */
+        :root { --input-bg: #1f1f1f; }
+        body { background-color: var(--bg); }
+        .nav-pills .nav-link { color: var(--muted); }
+        .nav-pills .nav-link.active { background-color: var(--accent); color: #fff; }
+        
+        .form-control, .form-select { 
+            background-color: var(--input-bg, #1f1f1f); 
+            color: #fff; 
+            border-color: var(--border-color); 
+        }
+        .form-control:focus, .form-select:focus { 
+            background-color: var(--input-bg, #1f1f1f); 
+            color: #fff; 
+            border-color: var(--accent); 
+            box-shadow: none; 
+        }
+        .table { 
+            --bs-table-color: #fff; 
+            --bs-table-bg: var(--card); 
+            --bs-table-border-color: var(--border-color); 
+            --bs-table-hover-color: #fff;
+            --bs-table-hover-bg: #2a2a2a;
+        }
+        .btn-sm { padding: 0.25rem 0.5rem; font-size: .875rem; }
+        .logout-btn-nav { background: none; border: none; padding: .5rem 1rem; font-size: 1em; }
+
+        /* --- ESTILOS PARA LA BARRA DE BÚSQUEDA --- */
+        .search-bar-group {
+            position: relative;
+        }
+        .search-bar-group .bi-search {
+            position: absolute;
+            top: 50%;
+            left: 15px;
+            transform: translateY(-50%);
+            color: var(--muted);
+            pointer-events: none;
+        }
+        .search-bar-group .form-control {
+            padding-left: 45px;
+            border-radius: 8px;
+            background-color: var(--bg);
+            border: 1px solid var(--border-color);
+        }
+        .search-bar-group .form-control:focus {
+            background-color: var(--bg);
+            border-color: var(--accent);
+        }
+        
+        /* Estilo para el nuevo botón de recarga */
+        .btn-reload {
+            background-color: #28a745; /* Verde */
+            border-color: #28a745;
+            color: #fff;
+        }
+        .btn-reload:hover {
+            background-color: #218838;
+            border-color: #1e7e34;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg sticky-top">
+        <div class="container">
+            <a class="navbar-brand text-warning" href="admin.html">Magnum Fitness - Panel Admin</a>
+            <ul class="navbar-nav ms-auto align-items-center" id="dynamic-nav-links">
+                </ul>
+        </div>
+    </nav>
+
+    <div class="container my-5">
+        <h1 class="section-title"><span>Panel</span> de Administrador</h1>
+
+        <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="pills-users-tab" data-bs-toggle="pill" data-bs-target="#pills-users" type="button">Usuarios</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="pills-products-tab" data-bs-toggle="pill" data-bs-target="#pills-products" type="button">Productos</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="pills-sales-tab" data-bs-toggle="pill" data-bs-target="#pills-sales" type="button">Ventas</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="pills-reports-tab" data-bs-toggle="pill" data-bs-target="#pills-reports" type="button">Informes</button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="pills-tabContent">
+            
+            <div class="tab-pane fade show active" id="pills-users" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h2 class="h4 mb-0">Gestión de Usuarios</h2>
+                    <button class="btn btn-sm btn-reload" id="reloadUsersBtn"><i class="bi bi-arrow-clockwise"></i> Recargar</button>
+                </div>
+                <div class="mb-3 search-bar-group">
+                    <i class="bi bi-search"></i>
+                    <input type="text" id="userSearch" class="form-control" placeholder="Buscar por nombre o email...">
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover">
+                        <thead><tr><th>Nombre</th><th>Email</th><th>Nueva Contraseña</th><th>Acción</th></tr></thead>
+                        <tbody id="users-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="pills-products" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h2 class="h4 mb-0">Agregar Nuevo Producto</h2>
+                    <button class="btn btn-sm btn-reload" id="reloadProductsBtn"><i class="bi bi-arrow-clockwise"></i> Recargar</button>
+                </div>
+                <form id="addProductForm" class="row g-3 p-4" style="background-color: var(--card); border-radius: 12px;">
+                    <div class="col-md-6"><label class="form-label">Nombre del Producto</label><input type="text" class="form-control" name="name" required></div>
+                    <div class="col-md-6"><label class="form-label">Categoría</label>
+                        <select class="form-select" name="category">
+                            <option value="plan">Plan</option>
+                            <option value="libro">Libro</option>
+                            <option value="producto">Producto</option>
+                        </select>
+                    </div>
+                    <div class="col-12"><label class="form-label">Descripción</label><input type="text" class="form-control" name="description" placeholder="Programa de 8 semanas..."></div>
+                    <div class="col-md-4"><label class="form-label">Precio (ej: 1.00)</label><input type="number" step="0.01" class="form-control" name="price" required></div>
+                    <div class="col-md-8"><label class="form-label">Archivo de Imagen</label><input type="file" class="form-control" name="prod-image-file" accept="image/jpeg,image/png"></div>
+                    <div class="col-md-8"><label class="form-label">Archivo PDF (si aplica)</label><input type="file" class="form-control" name="prod-pdf-file" accept=".pdf"></div>
+                    <div class="col-md-4"><label class="form-label">Páginas de Muestra</label><input type="number" class="form-control" name="preview_pages" value="1"></div>
+                    <div class="col-12"><button type="submit" class="btn btn-accent">Agregar Producto</button></div>
+                </form>
+                
+                <h2 class="h4 mt-5">Productos Existentes</h2>
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover">
+                        <thead><tr><th>ID</th><th>Nombre</th><th>Categoría</th><th>Precio</th><th>Acciones</th></tr></thead>
+                        <tbody id="products-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="pills-sales" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h2 class="h4 mb-0">Historial de Ventas</h2>
+                    <button class="btn btn-sm btn-reload" id="reloadSalesBtn"><i class="bi bi-arrow-clockwise"></i> Recargar</button>
+                </div>
+                <div class="mb-3 search-bar-group">
+                    <i class="bi bi-search"></i>
+                    <input type="text" id="salesSearch" class="form-control" placeholder="Buscar por usuario, producto, folio, etc....">
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover">
+                        <thead><tr><th>Fecha</th><th>Usuario</th><th>Producto(s)</th><th>Folio</th><th>ID Factura (PayPal)</th><th>Total</th><th>Estado</th><th>Acción de Reembolso</th></tr></thead>
+                        <tbody id="sales-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="pills-reports" role="tabpanel">
+                <h2 class="h4">Informes de Ventas (Corte de Caja)</h2>
+                <div class="row g-3 align-items-end p-3 mb-4" style="background-color: var(--card); border-radius: 12px;">
+                    <div class="col-md-4">
+                        <label for="report-date" class="form-label">Seleccionar Fecha</label>
+                        <input type="date" class="form-control" id="report-date">
+                    </div>
+                    <div class="col-md-auto">
+                        <button class="btn btn-accent" id="generateReportBtn">Generar Reporte</button>
+                    </div>
+                    <div class="col-md-auto">
+                        <a href="#" id="downloadReportLink" class="btn btn-outline-light" download>
+                            <i class="bi bi-download"></i> Descargar PDF
+                        </a>
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <div class="p-3 rounded" style="background-color: var(--card);">
+                            <h5 class="text-muted">Fecha del Reporte</h5>
+                            <h3 id="report-date-display">--/--/----</h3>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 rounded" style="background-color: var(--card);">
+                            <h5 class="text-muted">Ingresos Totales (Día)</h5>
+                            <h3 id="report-revenue">$0.00 MXN</h3>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 rounded" style="background-color: var(--card);">
+                            <h5 class="text-muted">Productos Vendidos (Día)</h5>
+                            <h3 id="report-products-sold">0</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-7">
+                        <div class="p-3 rounded" style="background-color: var(--card);">
+                            <h4 class="h5">Ventas por Producto</h4>
+                            <canvas id="salesChart" style="max-height: 350px;"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-5">
+                        <div class="p-3 rounded" style="background-color: var(--card);">
+                            <h4 class="h5">Desglose de Productos</h4>
+                            <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+                                <table class="table table-dark">
+                                    <thead><tr><th>Producto</th><th>Cant. Vendida</th></tr></thead>
+                                    <tbody id="report-table-body">
+                                        <tr><td colspan="2" class="text-muted text-center">Sin datos</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+
+    <div class="modal fade" id="editProductModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content" style="background-color: var(--card); border: 1px solid var(--border-color);">
+                <div class="modal-header">
+                    <h5 class="modal-title">Editar Producto</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editProductForm" class="row g-3">
+                        <input type="hidden" id="edit-product-id" name="id">
+                        <input type="hidden" id="edit-existing-image-url" name="existing_image_url">
+                        <input type="hidden" id="edit-existing-pdf-url" name="existing_pdf_url">
+                        
+                        <div class="col-md-6"><label class="form-label">Nombre</label><input type="text" class="form-control" name="name" id="edit-prod-name" required></div>
+                        <div class="col-md-6"><label class="form-label">Categoría</label>
+                            <select class="form-select" name="category" id="edit-prod-category">
+                                <option value="plan">Plan</option><option value="libro">Libro</option><option value="producto">Producto</option>
+                            </select>
+                        </div>
+                        <div class="col-12"><label class="form-label">Descripción</label><input type="text" class="form-control" name="description" id="edit-prod-desc"></div>
+                        <div class="col-md-4"><label class="form-label">Precio</label><input type="number" step="0.01" class="form-control" name="price" id="edit-prod-price" required></div>
+                        <div class="col-md-8"><label class="form-label">Nueva Imagen (Opcional)</label><input type="file" class="form-control" name="edit-prod-image-file" accept="image/jpeg,image/png"></div>
+                        <div class="col-md-8"><label class="form-label">Nuevo PDF (Opcional)</label><input type="file" class="form-control" name="edit-prod-pdf-file" accept=".pdf"></div>
+                        <div class="col-md-4"><label class="form-label">Págs. Muestra</label><input type="number" class="form-control" name="preview_pages" id="edit-prod-pages"></div>
+                        <div class="col-12 text-end">
+                            <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn btn-accent">Guardar Cambios</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+document.addEventListener('DOMContentLoaded', async () => {
+    const adminEmail = 'digitalbiblioteca48@gmail.com';
+    const dynamicNavLinks = document.getElementById('dynamic-nav-links');
+    let allProducts = [];
+    let salesChartInstance = null;
+    const editModal = new bootstrap.Modal(document.getElementById('editProductModal'));
+
+    // --- 1. VERIFICAR SESIÓN DE ADMIN ---
+    try {
+        const sessionResponse = await fetch('/check-session');
+        const sessionData = await sessionResponse.json();
+        if (!sessionData.loggedIn || sessionData.user.email !== adminEmail) {
+            alert('Acceso denegado. Debes ser administrador para ver esta página.');
+            window.location.href = 'login.html';
+            return;
+        }
+        dynamicNavLinks.innerHTML = `
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-person-circle me-1"></i> ${sessionData.user.name}
+                </a>
+                <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="navbarDropdown">
+                    <li><a class="dropdown-item" href="index.html">Volver a la Tienda</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><button id="logoutBtnNav" class="dropdown-item">Cerrar Sesión</button></li>
+                </ul>
+            </li>
+        `;
+        document.getElementById('logoutBtnNav').addEventListener('click', () => {
+            fetch('/logout', { method: 'POST' }).then(() => window.location.href = 'login.html');
+        });
+    } catch (err) {
+        alert('Error de conexión. Redirigiendo al login.');
+        window.location.href = 'login.html';
+        return;
+    }
+
+    // ==========================================================
+    // === LÓGICA DE CARGA DE DATOS (MODIFICADA) ===
+    // ==========================================================
+
+    function renderUsers(users) {
+        const usersBody = document.getElementById('users-table-body');
+        usersBody.innerHTML = '';
+        users.forEach(user => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${user.name}</td>
+                <td>${user.email}</td>
+                <td><input type="password" class="form-control form-control-sm" id="pass-${user.email}" placeholder="Nueva contraseña"></td>
+                <td><button class="btn btn-sm btn-accent change-pass-btn" data-email="${user.email}">Cambiar</button></td>
+            `;
+            usersBody.appendChild(row);
+        });
+    }
+
+    function renderProducts(products) {
+        const table = document.getElementById('products-table-body');
+        table.innerHTML = '';
+        allProducts = products; // Guardar para editar
+
+        products.forEach(p => {
+            const priceValue = parseFloat(p.price);
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${p.id}</td>
+                <td>${p.name}</td>
+                <td>${p.category}</td>
+                <td>$${isNaN(priceValue) ? '0.00' : priceValue.toFixed(2)}</td>
+                <td>
+                    <button class="btn-edit" onclick="editProduct(${p.id})">✏️</button>
+                    <button class="btn-delete" onclick="deleteProduct(${p.id})">🗑️</button>
+                </td>
+            `;
+            table.appendChild(row);
+        });
+    }
+
+    function renderSales(purchases) {
+        const salesBody = document.getElementById('sales-table-body');
+        salesBody.innerHTML = '';
+        purchases.forEach(s => {
+            const row = document.createElement('tr');
+            const purchaseDate = new Date(s.purchasedate).toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            let actionButton = '';
+            if (s.status === 'DEVOLUCIÓN SOLICITADA') {
+                actionButton = `<button class="btn btn-sm btn-warning process-refund-btn" data-id="${s.id}">Aprobar Reembolso</button>`;
+            } else if (s.status === 'DEVUELTO') {
+                actionButton = `<span class="text-danger">Reembolsado</span>`;
+            } else {
+                actionButton = `<span class="text-muted">N/A</span>`;
+            }
+            row.innerHTML = `
+                <td>${purchaseDate}</td>
+                <td>${s.username}<br><small class="text-muted">${s.useremail}</small></td>
+                <td>${s.productname}</td>
+                <td>${s.folio}</td>
+                <td>${s.invoiceid}</td>
+                <td>$${parseFloat(s.total || 0).toFixed(2)}</td>
+                <td>${s.status}</td>
+                <td>${actionButton}</td>
+            `;
+            salesBody.appendChild(row);
+        });
+    }
+
+    async function loadAndPopulateData() {
+        try {
+            const response = await fetch('/admin/data');
+            if (!response.ok) throw new Error('No se pudieron cargar los datos del panel.');
+            const data = await response.json();
+            renderUsers(data.users);
+            renderProducts(data.products);
+            renderSales(data.purchases);
+        } catch (err) {
+            console.error('Error al cargar datos:', err);
+            alert('Error al cargar datos. Revisa la consola.');
+        }
+    }
+
+    await loadAndPopulateData();
+
+    // ==========================================================
+    // === FUNCIONES GLOBALES DE EDICIÓN Y ELIMINACIÓN ===
+    // ==========================================================
+
+    window.editProduct = function (id) {
+        const product = allProducts.find(p => p.id == id);
+        if (product) {
+            document.getElementById('edit-product-id').value = product.id;
+            document.getElementById('edit-prod-name').value = product.name;
+            document.getElementById('edit-prod-category').value = product.category;
+            document.getElementById('edit-prod-desc').value = product.description || '';
+            document.getElementById('edit-prod-price').value = parseFloat(product.price).toFixed(2);
+            document.getElementById('edit-prod-pages').value = product.preview_pages || 1;
+            document.getElementById('edit-existing-image-url').value = product.image_url || '';
+            document.getElementById('edit-existing-pdf-url').value = product.pdf_url || '';
+            editModal.show();
+        }
+    };
+
+    window.deleteProduct = async function (id) {
+        if (confirm(`¿Seguro que deseas eliminar el producto con ID ${id}?`)) {
+            try {
+                const res = await fetch(`/admin/delete-product/${id}`, { method: 'DELETE' });
+                const data = await res.json();
+                alert(data.message);
+                if (data.success) window.location.reload();
+            } catch (err) {
+                console.error('Error al eliminar producto:', err);
+                alert('Error al eliminar producto.');
+            }
+        }
+    };
+
+    // ==========================================================
+    // === EVENTOS ===
+    // ==========================================================
+
+    document.getElementById('addProductForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        try {
+            const res = await fetch('/admin/add-product', { method: 'POST', body: formData });
+            const data = await res.json();
+            alert(data.message);
+            if (data.success) window.location.reload();
+        } catch {
+            alert('Error al agregar producto.');
+        }
+    });
+
+    document.getElementById('editProductForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('edit-product-id').value;
+        const formData = new FormData(e.target);
+        try {
+            const res = await fetch(`/admin/update-product/${id}`, { method: 'POST', body: formData });
+            const data = await res.json();
+            alert(data.message);
+            if (data.success) {
+                editModal.hide();
+                window.location.reload();
+            }
+        } catch {
+            alert('Error al actualizar producto.');
+        }
+    });
+
+    // === Cambio de contraseña ===
+    document.getElementById('users-table-body').addEventListener('click', async (e) => {
+        if (e.target.classList.contains('change-pass-btn')) {
+            const email = e.target.dataset.email;
+            const newPassword = document.getElementById(`pass-${email}`).value;
+            if (!newPassword) return alert('Escribe una contraseña');
+            const res = await fetch('/admin/update-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, newPassword })
+            });
+            const data = await res.json();
+            alert(data.message);
+        }
+    });
+
+    // === Recarga ===
+    document.getElementById('reloadUsersBtn').addEventListener('click', loadAndPopulateData);
+    document.getElementById('reloadProductsBtn').addEventListener('click', loadAndPopulateData);
+    document.getElementById('reloadSalesBtn').addEventListener('click', loadAndPopulateData);
+
+    // === Reembolsos ===
+    document.getElementById('sales-table-body').addEventListener('click', async (e) => {
+        const refundButton = e.target.closest('.process-refund-btn');
+        if (refundButton) {
+            const purchaseId = refundButton.dataset.id;
+            if (confirm('¿Procesar este reembolso?')) {
+                refundButton.disabled = true;
+                refundButton.textContent = "Procesando...";
+                try {
+                    const res = await fetch(`/admin/process-refund`, { 
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ purchaseId })
+                    });
+                    const data = await res.json();
+                    alert(data.message);
+                    if (data.success) window.location.reload();
+                } catch {
+                    refundButton.disabled = false;
+                    refundButton.textContent = "Aprobar Reembolso";
+                    alert('Error al procesar reembolso.');
+                }
+            }
+        }
+    });
+
+    // === Buscadores ===
+    document.getElementById('userSearch').addEventListener('keyup', (e) => {
+        const search = e.target.value.toLowerCase();
+        document.querySelectorAll('#users-table-body tr').forEach(row => {
+            row.style.display = row.textContent.toLowerCase().includes(search) ? '' : 'none';
+        });
+    });
+    document.getElementById('salesSearch').addEventListener('keyup', (e) => {
+        const search = e.target.value.toLowerCase();
+        document.querySelectorAll('#sales-table-body tr').forEach(row => {
+            row.style.display = row.textContent.toLowerCase().includes(search) ? '' : 'none';
+        });
+    });
+
+    // ==========================================================
+    // === INFORMES ===
+    // ==========================================================
+    const reportDateInput = document.getElementById('report-date');
+    const generateReportBtn = document.getElementById('generateReportBtn');
+    const downloadReportLink = document.getElementById('downloadReportLink');
+    const reportDateDisplay = document.getElementById('report-date-display');
+    const reportRevenueEl = document.getElementById('report-revenue');
+    const reportProductsSoldEl = document.getElementById('report-products-sold');
+    const reportTableBody = document.getElementById('report-table-body');
+    const chartCtx = document.getElementById('salesChart').getContext('2d');
+
+    async function loadSalesReport(dateString) {
+    try {
+        const response = await fetch(`/admin/sales-report?date=${dateString}`);
+        if (!response.ok) throw new Error('No se pudo cargar el informe.');
+        const report = await response.json();
+
+        const displayDate = new Date(dateString + 'T12:00:00');
+        reportDateDisplay.textContent = displayDate.toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' });
+        reportRevenueEl.textContent = `$${report.totalRevenue.toFixed(2)} MXN`;
+        reportProductsSoldEl.textContent = report.totalProductsSold;
+
+        reportTableBody.innerHTML = '';
+        if (Object.keys(report.productSummary).length === 0) {
+            reportTableBody.innerHTML = '<tr><td colspan="2" class="text-muted text-center">No hay ventas para esta fecha.</td></tr>';
+        } else {
+            for (const [name, qty] of Object.entries(report.productSummary)) {
+                reportTableBody.innerHTML += `<tr><td>${name}</td><td>${qty}</td></tr>`;
+            }
+        }
+
+        // Actualiza el enlace de descarga (por si se copia o usa directo)
+        downloadReportLink.href = `/admin/download-report?date=${dateString}`;
+
+        // --- Gráfica ---
+        if (salesChartInstance) salesChartInstance.destroy();
+
+        salesChartInstance = new Chart(chartCtx, {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(report.productSummary),
+                datasets: [{
+                    data: Object.values(report.productSummary),
+                    backgroundColor: ['#ff8800', '#ff5500', '#28a745', '#dc3545', '#0dcaf0', '#adb5bd'],
+                    borderColor: 'var(--card)'
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { labels: { color: '#fff' }, position: 'bottom' } }
+            }
+        });
+
+    } catch (err) {
+        console.error('Error al generar informe:', err);
+        alert('No se pudo generar el informe.');
+    }
+}
+
+// --- Evento del botón "Generar Reporte" ---
+generateReportBtn.addEventListener('click', () => {
+    const selectedDate = reportDateInput.value;
+    if (!selectedDate) return alert('Selecciona una fecha.');
+    loadSalesReport(selectedDate);
+});
+
+// --- Evento del botón "Descargar PDF" ---
+downloadReportLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    const selectedDate = reportDateInput.value;
+    if (!selectedDate) return alert('Selecciona una fecha.');
+    
+    // Detecta el dominio actual automáticamente (funciona local y en hosting)
+    const baseUrl = window.location.origin;
+    window.open(`${baseUrl}/admin/download-report?date=${selectedDate}`, '_blank');
+});
+
+// --- Cargar reporte de hoy al abrir ---
+const today = new Date().toISOString().split('T')[0];
+reportDateInput.value = today;
+loadSalesReport(today);
+});
+</script>
+
+</body>
+</html>
