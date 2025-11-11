@@ -1,11 +1,21 @@
-# Archivos de entorno (¡Contiene tus contraseñas!)
+# Node
+node_modules/
 .env
+.env.local
+.env.production
+npm-debug.log
 
-# Base de datos local (ya no la usaremos)
+# Logs
+logs/
+*.log
+
+# Sistema
+.DS_Store
+Thumbs.db
 portal.db
 
-# Carpeta de módulos de Node (pesadísima e innecesaria)
-node_modules/
-
 # Registros de error de NPM
-npm-debug.log*
+npm-debug.log*# Archivos temporales
+tmp/
+temp/
+*.tmp
