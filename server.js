@@ -250,7 +250,6 @@ app.post('/verify-email', async (req, res) => {
 });
 
 // --- 3. INICIO DE SESIÓN ---
-const crypto = require('crypto'); // Asegúrate de que SOLO esté una vez en todo el archivo
 
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
