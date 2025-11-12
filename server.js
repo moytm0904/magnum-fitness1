@@ -56,7 +56,7 @@ app.use(session({
         pool: pool,              // se conecta al pool de PostgreSQL
         tableName: 'session'     // nombre de la tabla donde guardará las sesiones
     }),
-    secret: process.env.SESSION_SECRET || 'mi_secreto_super_seguro',
+    secret: process.env.SESSION_SECRET || 'un_secreto_muy_largo_y_dificil_de_adivinar',
     resave: false,
     saveUninitialized: false,
     cookie: {
