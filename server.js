@@ -253,21 +253,35 @@ app.post('/verify-email', async (req, res) => {
 });
 
 // --- 3. INICIO DE SESIÓN ---
+// --- 3. INICIO DE SESIÓN ---
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
+  console.log('🟦 /login recibido:', email); // log para depurar
+
   try {
     const user = await db.get('SELECT * FROM users WHERE email = $1', [email]);
     const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
 
-    if (!user || user.password !== hashedPassword) {
+    if (!user) {
+      console.log('❌ Usuario no encontrado');
       return res.status(401).json({ success: false, message: 'Usuario o contraseña incorrectos.' });
     }
+
+    if (user.password !== hashedPassword) {
+      console.log('❌ Contraseña incorrecta');
+      return res.status(401).json({ success: false, message: 'Usuario o contraseña incorrectos.' });
+    }
+
     if (!user.isverified) {
+      console.log('⚠️ Usuario no verificado');
       return res.status(401).json({ success: false, message: 'Tu cuenta no ha sido verificada.' });
     }
 
     const loginToken = Math.floor(100000 + Math.random() * 900000).toString();
+    console.log('🔢 Token generado:', loginToken);
+
     await db.run('UPDATE users SET verificationtoken = $1 WHERE email = $2', [loginToken, email]);
+    console.log('📦 Token guardado en BD');
 
     const emailContent = `
       <p>Hola ${user.name},</p>
@@ -277,19 +291,25 @@ app.post('/login', async (req, res) => {
       </div>
     `;
 
-    await transporter.sendMail({
+    const mailOptions = {
       from: '"Magnum Fitness" <digitalbiblioteca48@gmail.com>',
       to: email,
       subject: 'Código para Iniciar Sesión',
       html: createStyledEmail('Verifica tu Inicio de Sesión', emailContent)
-    });
+    };
+
+    console.log('📨 Intentando enviar correo...');
+    await transporter.sendMail(mailOptions);
+    console.log('✅ Correo enviado correctamente');
 
     res.json({ success: true });
+
   } catch (error) {
     console.error('❌ Error en /login:', error);
     res.status(500).json({ success: false, message: 'Error interno del servidor.' });
   }
 });
+
 
 // --- 4. VERIFICACIÓN DE CÓDIGO LOGIN (2FA) ---
 app.post('/verify-login-code', async (req, res) => {
