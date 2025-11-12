@@ -257,7 +257,7 @@ app.post('/login', async (req, res) => {
 
   try {
     // Buscar usuario en la base de datos
-    const user = await db.get('SELECT * FROM users WHERE email = ?', [email]);
+    const user = await db.get('SELECT * FROM users WHERE email = $1', [email]);
 
     if (!user) {
       console.log('❌ Usuario no encontrado');
@@ -282,7 +282,7 @@ app.post('/login', async (req, res) => {
     console.log('🔢 Token generado:', loginToken);
 
     // Guardar el token temporalmente en la BD
-    await db.run('UPDATE users SET verificationtoken = ? WHERE email = ?', [loginToken, email]);
+    await db.run('UPDATE users SET verificationtoken = ? WHERE email = $2', [loginToken, email]);
     console.log('📦 Token guardado en BD');
 
     // Crear el contenido del correo
