@@ -81,8 +81,8 @@ const client = new paypal.core.PayPalHttpClient(environment);
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: process.env.GMAIL_USER, // <-- DESDE .env
-        pass: process.env.GMAIL_PASS  // <-- DESDE .env
+        user: 'digitalbiblioteca48@gmail.com', // <-- DESDE .env
+        pass: 'qeyo uonr xuif szgt'  // <-- DESDE .env
     }
 });
 
