@@ -45,7 +45,7 @@ app.set('trust proxy', true);
 // === CONFIGURACIÓN DE SESIONES CON PostgreSQL ===
 // ==========================================================
 const pg = require('pg');
-const session = require('express-session');
+
 const connectPgSimple = require('connect-pg-simple')(session);
 
 const pool = new pg.Pool({
