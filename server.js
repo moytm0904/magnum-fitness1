@@ -190,10 +190,7 @@ app.get('/api/location-currency', (req, res) => {
     });
 });
 
-// ==========================================================
-// === ENDPOINTS DE AUTENTICACIÓN (POSTGRES) ===
-// ==========================================================
-const crypto = require('crypto');
+
 
 // --- 1. REGISTRO ---
 app.post('/register', async (req, res) => {
