@@ -1134,7 +1134,7 @@ const PORT = process.env.PORT || 4000;
 // Iniciar la DB (que ahora es una clase) y luego el servidor
 try {
     app.listen(PORT, '0.0.0.0', () => {
-        console.log(`✅ Servidor escuchando en el puerto ${PORT}`);
+        console.log(`✅ http://localhost:${PORT}`);
         updateExchangeRates();
         // Actualiza tasas de cambio cada 12 horas
         setInterval(updateExchangeRates, 1000 * 60 * 60 * 12);
