@@ -12,6 +12,7 @@ const cloudinary = require('cloudinary').v2; // <-- AÑADIDO
 const { generateInvoicePdfBuffer } = require('./generators/pdfGenerator');
 
 
+
 // En la parte superior de server.js, junto a los otros 'require'
 
 const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
@@ -77,14 +78,27 @@ const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET;
 const environment = new paypal.core.LiveEnvironment(PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET);
 const client = new paypal.core.PayPalHttpClient(environment);
 
-// --- Configuración del Correo ---
+// --- CONFIGURACIÓN DEL CORREO (TRANSPORTER) ---
+const nodemailer = require('nodemailer');
+
+// 🔹 Crear el transporter con Gmail
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.GMAIL_USER, // <-- DESDE .env
-        pass: process.env.GMAIL_PASS  // <-- DESDE .env
-    }
+  service: 'gmail',
+  auth: {
+    user: process.env.GMAIL_USER || 'digitalbiblioteca48@gmail.com', // tu correo
+    pass: process.env.GMAIL_APP_PASSWORD || process.env.GMAIL_PASS   // clave de app (no contraseña normal)
+  }
 });
+
+// 🔹 Verificar la conexión con Gmail al iniciar el servidor
+transporter.verify((error, success) => {
+  if (error) {
+    console.error('❌ Error al conectar con Gmail:', error);
+  } else {
+    console.log('✅ Conexión con Gmail establecida correctamente');
+  }
+});
+
 
 // ==========================================================
 // === FUNCIÓN PARA CREAR PLANTILLAS DE CORREO HTML ===
