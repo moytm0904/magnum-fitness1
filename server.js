@@ -78,8 +78,7 @@ const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET;
 const environment = new paypal.core.LiveEnvironment(PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET);
 const client = new paypal.core.PayPalHttpClient(environment);
 
-// --- CONFIGURACIÓN DEL CORREO (TRANSPORTER) ---
-const nodemailer = require('nodemailer');
+
 
 // 🔹 Crear el transporter con Gmail
 const transporter = nodemailer.createTransport({
