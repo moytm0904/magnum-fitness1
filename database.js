@@ -70,6 +70,19 @@ class Database {
                 );
             `);
 
+             // ==============================================
+            // NUEVA TABLA DE SESIONES (para express-session)
+            // ==============================================
+            await this.pool.query(`
+                CREATE TABLE IF NOT EXISTS session (
+                    sid VARCHAR NOT NULL COLLATE "default",
+                    sess JSON NOT NULL,
+                    expire TIMESTAMP(6) NOT NULL,
+                    PRIMARY KEY (sid)
+                );
+            `);
+            await this.pool.query(`CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON session ("expire");`);
+
             console.log('Base de datos PostgreSQL conectada y tablas aseguradas.');
             
             // Insertar productos iniciales (solo si la tabla está vacía)

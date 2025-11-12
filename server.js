@@ -41,13 +41,31 @@ app.use(cookieParser());
 app.set('trust proxy', true);
 
 
-// --- CONFIGURACIÓN DE SESIONES ---
+// --- CONFIGURACIÓN DE SESIONES CON PostgreSQL ---
+const pg = require('pg');
+const connectPgSimple = require('connect-pg-simple')(session);
+
+// Crea un pool de conexión a tu base de datos Render
+const pool = new pg.Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
+});
+
 app.use(session({
-    secret: process.env.SESSION_SECRET,
+    store: new connectPgSimple({
+        pool: pool,              // se conecta al pool de PostgreSQL
+        tableName: 'session'     // nombre de la tabla donde guardará las sesiones
+    }),
+    secret: process.env.SESSION_SECRET || 'mi_secreto_super_seguro',
     resave: false,
     saveUninitialized: false,
-    cookie: { maxAge: 1000 * 60 * 60 * 24 }
+    cookie: {
+        maxAge: 1000 * 60 * 60 * 24, // 1 día
+        secure: false,                // cámbialo a true si usas HTTPS forzado
+        sameSite: 'lax'
+    }
 }));
+
 
 
 // --- CONFIGURACIÓN DE PAYPAL ---
