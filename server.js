@@ -41,29 +41,31 @@ app.use(cookieParser());
 app.set('trust proxy', true);
 
 
-// --- CONFIGURACIÓN DE SESIONES CON PostgreSQL ---
+// ==========================================================
+// === CONFIGURACIÓN DE SESIONES CON PostgreSQL ===
+// ==========================================================
 const pg = require('pg');
+const session = require('express-session');
 const connectPgSimple = require('connect-pg-simple')(session);
 
-// Crea un pool de conexión a tu base de datos Render
 const pool = new pg.Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
 });
 
 app.use(session({
-    store: new connectPgSimple({
-        pool: pool,              // se conecta al pool de PostgreSQL
-        tableName: 'session'     // nombre de la tabla donde guardará las sesiones
-    }),
-    secret: process.env.SESSION_SECRET || 'un_secreto_muy_largo_y_dificil_de_adivinar',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        maxAge: 1000 * 60 * 60 * 24, // 1 día
-        secure: false,                // cámbialo a true si usas HTTPS forzado
-        sameSite: 'lax'
-    }
+  store: new connectPgSimple({
+    pool: pool,
+    tableName: 'session'
+  }),
+  secret: process.env.SESSION_SECRET || 'un_secreto_muy_largo_y_dificil_de_adivinar',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    maxAge: 1000 * 60 * 60 * 24, // 1 día
+    secure: false, // poner true si usas HTTPS
+    sameSite: 'lax'
+  }
 }));
 
 
@@ -189,8 +191,9 @@ app.get('/api/location-currency', (req, res) => {
 });
 
 // ==========================================================
-// === ENDPOINTS DE AUTENTICACIÓN (MODIFICADOS PARA POSTGRES) ===
+// === ENDPOINTS DE AUTENTICACIÓN (POSTGRES) ===
 // ==========================================================
+const crypto = require('crypto');
 
 // --- 1. REGISTRO ---
 app.post('/register', async (req, res) => {
@@ -219,53 +222,39 @@ app.post('/register', async (req, res) => {
       <p>Ingrésalo en la página para completar tu registro.</p>
     `;
 
-    const mailOptions = {
+    await transporter.sendMail({
       from: '"Magnum Fitness" <digitalbiblioteca48@gmail.com>',
       to: email,
       subject: 'Código para Activar tu Cuenta',
       html: createStyledEmail('Activa tu Cuenta', emailContent)
-    };
+    });
 
-    await transporter.sendMail(mailOptions);
     res.json({ success: true });
   } catch (error) {
     console.error('❌ Error en /register:', error);
-    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+    res.status(500).json({ success: false, message: 'Error interno del servidor.' });
   }
 });
 
-
-
-// --- 2. VERIFICACIÓN DE CORREO CON CÓDIGO ---
+// --- 2. VERIFICACIÓN DE CORREO ---
 app.post('/verify-email', async (req, res) => {
   const { email, token } = req.body;
-
   try {
     const user = await db.get('SELECT verificationtoken FROM users WHERE email = $1', [email]);
-    console.log('📩 Email recibido:', email);
-    console.log('🔑 Token recibido desde el cliente:', token);
-    console.log('🗄️ Token en la base de datos:', user ? user.verificationtoken : 'Usuario no encontrado');
-
-    if (user && user.verificationtoken && user.verificationtoken.toString().trim() === token.toString().trim()) {
+    if (user && user.verificationtoken && user.verificationtoken.trim() === token.trim()) {
       await db.run('UPDATE users SET isverified = TRUE, verificationtoken = NULL WHERE email = $1', [email]);
-      console.log('✅ Verificación correcta para', email);
-      res.json({ success: true });
-    } else {
-      console.log('❌ No coincide el token o usuario no encontrado');
-      res.status(400).json({ success: false, message: 'El código no es válido o ha expirado.' });
+      return res.json({ success: true });
     }
+    res.status(400).json({ success: false, message: 'El código no es válido o ha expirado.' });
   } catch (error) {
     console.error('❌ Error en /verify-email:', error);
     res.status(500).json({ success: false, message: 'Error en el servidor.' });
   }
 });
 
-
-
 // --- 3. INICIO DE SESIÓN ---
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
-
   try {
     const user = await db.get('SELECT * FROM users WHERE email = $1', [email]);
     const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
@@ -273,13 +262,11 @@ app.post('/login', async (req, res) => {
     if (!user || user.password !== hashedPassword) {
       return res.status(401).json({ success: false, message: 'Usuario o contraseña incorrectos.' });
     }
-
     if (!user.isverified) {
       return res.status(401).json({ success: false, message: 'Tu cuenta no ha sido verificada.' });
     }
 
     const loginToken = Math.floor(100000 + Math.random() * 900000).toString();
-
     await db.run('UPDATE users SET verificationtoken = $1 WHERE email = $2', [loginToken, email]);
 
     const emailContent = `
@@ -290,86 +277,92 @@ app.post('/login', async (req, res) => {
       </div>
     `;
 
-    const mailOptions = {
+    await transporter.sendMail({
       from: '"Magnum Fitness" <digitalbiblioteca48@gmail.com>',
       to: email,
       subject: 'Código para Iniciar Sesión',
       html: createStyledEmail('Verifica tu Inicio de Sesión', emailContent)
-    };
+    });
 
-    await transporter.sendMail(mailOptions);
     res.json({ success: true });
   } catch (error) {
     console.error('❌ Error en /login:', error);
-    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+    res.status(500).json({ success: false, message: 'Error interno del servidor.' });
   }
 });
 
-
-
-// --- 4. VERIFICACIÓN DE CÓDIGO 2FA EN LOGIN ---
+// --- 4. VERIFICACIÓN DE CÓDIGO LOGIN (2FA) ---
 app.post('/verify-login-code', async (req, res) => {
   const { email, token } = req.body;
-
   try {
     const user = await db.get('SELECT * FROM users WHERE email = $1', [email]);
-
-    if (user && user.verificationtoken && user.verificationtoken.toString().trim() === token.toString().trim()) {
+    if (user && user.verificationtoken && user.verificationtoken.trim() === token.trim()) {
       await db.run('UPDATE users SET verificationtoken = NULL WHERE email = $1', [email]);
-
       req.session.user = { email: user.email, name: user.name };
 
-      const emailContent = `
-        <p>Hola ${user.name},</p>
-        <p>Detectamos un nuevo inicio de sesión en tu cuenta. Si no reconoces esta actividad, contacta a soporte de inmediato.</p>
-      `;
-
-      const mailOptions = {
+      await transporter.sendMail({
         from: '"Magnum Fitness" <digitalbiblioteca48@gmail.com>',
         to: email,
         subject: 'Alerta de Seguridad: Nuevo Inicio de Sesión',
-        html: createStyledEmail('Alerta de Seguridad', emailContent)
-      };
+        html: createStyledEmail('Alerta de Seguridad', `<p>Hola ${user.name}, se detectó un nuevo inicio de sesión.</p>`)
+      });
 
-      await transporter.sendMail(mailOptions);
-      res.json({ success: true });
-    } else {
-      console.log('❌ Token inválido o usuario no encontrado en /verify-login-code');
-      res.status(400).json({ success: false, message: 'Código incorrecto o expirado.' });
+      return res.json({ success: true });
     }
+    res.status(400).json({ success: false, message: 'Código incorrecto o expirado.' });
   } catch (error) {
     console.error('❌ Error en /verify-login-code:', error);
     res.status(500).json({ success: false, message: 'Error en el servidor.' });
   }
 });
 
-
-// --- SOLICITAR CAMBIO DE CONTRASEÑA ---
+// --- 5. SOLICITAR CAMBIO DE CONTRASEÑA ---
 app.post('/request-password-reset', async (req, res) => {
-    const { email } = req.body;
+  const { email } = req.body;
+  try {
     const user = await db.get('SELECT * FROM users WHERE email = $1', [email]);
-    if (!user) { return res.status(404).json({ success: false, message: 'No se encontró un usuario con ese correo.' }); }
+    if (!user) return res.status(404).json({ success: false, message: 'No se encontró un usuario con ese correo.' });
+
     const resetToken = Math.floor(100000 + Math.random() * 900000).toString();
-    await db.run('UPDATE users SET verificationToken = $1 WHERE email = $2', [resetToken, email]);
-    
-    const emailContent = `<p>Hola ${user.name},</p><p>Tu código para restablecer la contraseña es: <b>${resetToken}</b></p>`;
-    const mailOptions = { from: '"Tu Portal" <digitalbiblioteca48@gmail.com>', to: email, subject: 'Código para Restablecer Contraseña', html: createStyledEmail('Restablecer Contraseña', emailContent) };
-    transporter.sendMail(mailOptions);
-    
+    await db.run('UPDATE users SET verificationtoken = $1 WHERE email = $2', [resetToken, email]);
+
+    const emailContent = `
+      <p>Hola ${user.name},</p>
+      <p>Tu código para restablecer la contraseña es:</p>
+      <div style="font-size: 36px; letter-spacing: 10px; margin: 20px 0; padding: 15px; background-color: #1e1e1e; border-radius: 5px; text-align: center; color: #f7a610;">
+        <b>${resetToken}</b>
+      </div>
+    `;
+
+    await transporter.sendMail({
+      from: '"Magnum Fitness" <digitalbiblioteca48@gmail.com>',
+      to: email,
+      subject: 'Código para Restablecer Contraseña',
+      html: createStyledEmail('Restablecer Contraseña', emailContent)
+    });
+
     res.json({ success: true });
+  } catch (error) {
+    console.error('❌ Error en /request-password-reset:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+  }
 });
 
-// --- CAMBIAR LA CONTRASEÑA CON EL CÓDIGO ---
+// --- 6. CAMBIAR CONTRASEÑA ---
 app.post('/reset-password-with-code', async (req, res) => {
-    const { email, code, newPassword } = req.body;
+  const { email, code, newPassword } = req.body;
+  try {
     const user = await db.get('SELECT * FROM users WHERE email = $1', [email]);
-    if (user && user.verificationToken === code) {
-        const newHashedPassword = crypto.createHash('sha256').update(newPassword).digest('hex');
-        await db.run('UPDATE users SET password = $1, verificationToken = NULL WHERE email = $2', [newHashedPassword, email]);
-        res.json({ success: true });
-    } else {
-        res.status(400).json({ success: false, message: 'El código es incorrecto o ha expirado.' });
+    if (user && user.verificationtoken && user.verificationtoken.trim() === code.trim()) {
+      const newHashedPassword = crypto.createHash('sha256').update(newPassword).digest('hex');
+      await db.run('UPDATE users SET password = $1, verificationtoken = NULL WHERE email = $2', [newHashedPassword, email]);
+      return res.json({ success: true });
     }
+    res.status(400).json({ success: false, message: 'El código es incorrecto o ha expirado.' });
+  } catch (error) {
+    console.error('❌ Error en /reset-password-with-code:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+  }
 });
 
 // --- 5. CERRAR SESIÓN ---
