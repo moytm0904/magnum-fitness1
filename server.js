@@ -249,15 +249,17 @@ app.post('/verify-email', async (req, res) => {
   }
 });
 
-// --- 3. INICIO DE SESIÓN ---
 
+
+// --- 3. INICIO DE SESIÓN (PostgreSQL) ---
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
   console.log('🟦 /login recibido:', email);
 
   try {
-    // Buscar usuario en la base de datos
-    const user = await db.get('SELECT * FROM users WHERE email = $1', [email]);
+    // Buscar usuario
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const user = result.rows[0];
 
     if (!user) {
       console.log('❌ Usuario no encontrado');
@@ -271,51 +273,50 @@ app.post('/login', async (req, res) => {
       return res.status(401).json({ success: false, message: 'Usuario o contraseña incorrectos.' });
     }
 
-    // Verificar si el usuario está verificado
+    // Verificar cuenta activada
     if (!user.isverified) {
       console.log('⚠️ Usuario no verificado');
       return res.status(401).json({ success: false, message: 'Tu cuenta no ha sido verificada.' });
     }
 
-    // Generar token de inicio de sesión
+    // Generar token
     const loginToken = Math.floor(100000 + Math.random() * 900000).toString();
     console.log('🔢 Token generado:', loginToken);
 
-    // Guardar el token temporalmente en la BD
-    await db.run('UPDATE users SET verificationtoken = ? WHERE email = $2', [loginToken, email]);
+    // Guardar token
+    await pool.query(
+      'UPDATE users SET verificationtoken = $1 WHERE email = $2;',
+      [loginToken, email]
+    );
     console.log('📦 Token guardado en BD');
 
-    // Crear el contenido del correo
+    // Enviar correo
     const emailContent = `
       <p>Hola ${user.name},</p>
       <p>Tu código para completar el inicio de sesión es:</p>
       <div style="font-size: 36px; letter-spacing: 10px; margin: 20px 0; padding: 15px; background-color: #1e1e1e; border-radius: 5px; text-align: center; color: #f7a610;">
         <b>${loginToken}</b>
       </div>
-      <p>Este código expirará en 10 minutos.</p>
     `;
 
-    // Opciones del correo
     const mailOptions = {
-      from: `"Magnum Fitness" <${process.env.GMAIL_USER}>`,
+      from: '"Magnum Fitness" <digitalbiblioteca48@gmail.com>',
       to: email,
       subject: 'Código para Iniciar Sesión',
       html: createStyledEmail('Verifica tu Inicio de Sesión', emailContent)
     };
 
-    // Enviar el correo
-    console.log('📨 Enviando correo de verificación...');
+    console.log('📨 Intentando enviar correo...');
     await transporter.sendMail(mailOptions);
     console.log('✅ Correo enviado correctamente');
 
-    // Enviar respuesta al frontend
-    res.json({ success: true, message: 'Correo de verificación enviado.' });
-
+    res.json({ success: true });
   } catch (error) {
-    console.error('❌ Error en /login:', error.message);
+    console.error('❌ Error en /login:', error);
     res.status(500).json({ success: false, message: 'Error interno del servidor.' });
   }
 });
+
 
 
 
