@@ -1090,16 +1090,19 @@ app.post('/enviar-factura', async (req, res) => {
 
 // --- Iniciar el Servidor y la Base de Datos ---
 const PORT = process.env.PORT || 4000;
+
 // Iniciar la DB (que ahora es una clase) y luego el servidor
 try {
-    app.listen(PORT, () => {
-        console.log(`Servidor escuchando en http://localhost:${PORT}`);
+    app.listen(PORT, '0.0.0.0', () => {
+        console.log(`✅ Servidor escuchando en el puerto ${PORT}`);
         updateExchangeRates();
-        setInterval(updateExchangeRates, 1000 * 60 * 60 * 12); 
+        // Actualiza tasas de cambio cada 12 horas
+        setInterval(updateExchangeRates, 1000 * 60 * 60 * 12);
     });
-} catch(err) {
+} catch (err) {
     console.error('❌ No se pudo iniciar el servidor:', err);
 }
+
 
 /// ==========================================================
 // === FUNCIÓN DE CORREO DE COMPRA (CORREGIDA) ===
