@@ -250,62 +250,74 @@ app.post('/verify-email', async (req, res) => {
 });
 
 // --- 3. INICIO DE SESIÓN ---
-// --- 3. INICIO DE SESIÓN ---
+const crypto = require('crypto'); // Asegúrate de que SOLO esté una vez en todo el archivo
+
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
-  console.log('🟦 /login recibido:', email); // log para depurar
+  console.log('🟦 /login recibido:', email);
 
   try {
-    const user = await db.get('SELECT * FROM users WHERE email = $1', [email]);
-    const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
+    // Buscar usuario en la base de datos
+    const user = await db.get('SELECT * FROM users WHERE email = ?', [email]);
 
     if (!user) {
       console.log('❌ Usuario no encontrado');
       return res.status(401).json({ success: false, message: 'Usuario o contraseña incorrectos.' });
     }
 
+    // Verificar contraseña
+    const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
     if (user.password !== hashedPassword) {
       console.log('❌ Contraseña incorrecta');
       return res.status(401).json({ success: false, message: 'Usuario o contraseña incorrectos.' });
     }
 
+    // Verificar si el usuario está verificado
     if (!user.isverified) {
       console.log('⚠️ Usuario no verificado');
       return res.status(401).json({ success: false, message: 'Tu cuenta no ha sido verificada.' });
     }
 
+    // Generar token de inicio de sesión
     const loginToken = Math.floor(100000 + Math.random() * 900000).toString();
     console.log('🔢 Token generado:', loginToken);
 
-    await db.run('UPDATE users SET verificationtoken = $1 WHERE email = $2', [loginToken, email]);
+    // Guardar el token temporalmente en la BD
+    await db.run('UPDATE users SET verificationtoken = ? WHERE email = ?', [loginToken, email]);
     console.log('📦 Token guardado en BD');
 
+    // Crear el contenido del correo
     const emailContent = `
       <p>Hola ${user.name},</p>
       <p>Tu código para completar el inicio de sesión es:</p>
       <div style="font-size: 36px; letter-spacing: 10px; margin: 20px 0; padding: 15px; background-color: #1e1e1e; border-radius: 5px; text-align: center; color: #f7a610;">
         <b>${loginToken}</b>
       </div>
+      <p>Este código expirará en 10 minutos.</p>
     `;
 
+    // Opciones del correo
     const mailOptions = {
-      from: '"Magnum Fitness" <digitalbiblioteca48@gmail.com>',
+      from: `"Magnum Fitness" <${process.env.GMAIL_USER}>`,
       to: email,
       subject: 'Código para Iniciar Sesión',
       html: createStyledEmail('Verifica tu Inicio de Sesión', emailContent)
     };
 
-    console.log('📨 Intentando enviar correo...');
+    // Enviar el correo
+    console.log('📨 Enviando correo de verificación...');
     await transporter.sendMail(mailOptions);
     console.log('✅ Correo enviado correctamente');
 
-    res.json({ success: true });
+    // Enviar respuesta al frontend
+    res.json({ success: true, message: 'Correo de verificación enviado.' });
 
   } catch (error) {
-    console.error('❌ Error en /login:', error);
+    console.error('❌ Error en /login:', error.message);
     res.status(500).json({ success: false, message: 'Error interno del servidor.' });
   }
 });
+
 
 
 // --- 4. VERIFICACIÓN DE CÓDIGO LOGIN (2FA) ---
