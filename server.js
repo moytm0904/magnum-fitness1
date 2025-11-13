@@ -1210,7 +1210,7 @@ app.get('/my-purchases', async (req, res) => {
                 p.useremail,
                 p.productname,
                 p.total,
-                p.purchasedate,
+                p.purchaseDate,
                 p.status,
                 pr.name AS "product_name",
                 pr.description AS "product_description",
@@ -1219,7 +1219,7 @@ app.get('/my-purchases', async (req, res) => {
             FROM purchases p
             LEFT JOIN products pr ON p.productname = pr.name
             WHERE p.useremail = $1
-            ORDER BY p.purchasedate DESC
+            ORDER BY p.purchaseDate DESC
         `;
 
         const purchases = await db.all(query, [userEmail]);
