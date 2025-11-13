@@ -257,15 +257,32 @@
                     purchasesBody.innerHTML = '<tr><td colspan="6" class="text-center p-4">Aún no has realizado ninguna compra.</td></tr>';
                 } else {
                     // Renderizar cada compra
-                    purchases.forEach(purchase => {
-                        // El backend debe enviar purchase.purchaseDate ya formateada como string.
-                        const purchaseDate = purchase.purchaseDate || '';
-                        const isReturned = (purchase.status && purchase.status.toUpperCase() !== 'COMPLETADO');
-                        const statusClass = isReturned ? 'status-returned' : '';
-                        const rawNames = purchase.productname || purchase.product_name || purchase.productName || '';
-                        const purchasedProductNames = (typeof rawNames === 'string' && rawNames.trim() !== '')
-                            ? rawNames.split(',').map(n => n.trim())
-                            : ['Producto desconocido'];
+                   purchases.forEach(purchase => {
+                    // Buscar el campo correcto de fecha (según el nombre que use el backend)
+                    const purchaseDateRaw =
+                        purchase.purchaseDate ||  // opción 1
+                        purchase.fecha ||         // opción 2 (muy común en español)
+                        purchase.date ||          // opción 3
+                        purchase.created_at ||    // opción 4 (muy común en bases de datos)
+                        '';
+
+                    // Formatear la fecha a formato mexicano dd/mm/yyyy
+                    const purchaseDate = purchaseDateRaw
+                        ? new Date(purchaseDateRaw).toLocaleDateString('es-MX', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric'
+                        })
+                        : '';
+
+                    const isReturned = (purchase.status && purchase.status.toUpperCase() !== 'COMPLETADO');
+                    const statusClass = isReturned ? 'status-returned' : '';
+
+                    const rawNames = purchase.productname || purchase.product_name || purchase.productName || '';
+                    const purchasedProductNames = (typeof rawNames === 'string' && rawNames.trim() !== '')
+                        ? rawNames.split(',').map(n => n.trim())
+                        : ['Producto desconocido'];
+
 
                         purchasedProductNames.forEach((productName, index) => {
                             const row = document.createElement('tr');
