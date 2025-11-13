@@ -138,16 +138,96 @@ const uploadToCloudinary = (fileBuffer, options) => {
 const EXCHANGE_RATE_API_KEY = '259dea087c98ba3bc01fe430';
 let exchangeRates = {}; // Caché para guardar las tasas de cambio
 
-// Mapeo simple de país a moneda
+/**
+ * Mapeo de códigos de país (ISO 3166-1 alfa-2) a códigos de moneda (ISO 4217).
+ * Esta es una lista completa que cubre las principales economías y regiones.
+ */
 const countryToCurrency = {
-    'MX': 'MXN', // México
+    // --- América del Norte ---
     'US': 'USD', // Estados Unidos
     'CA': 'CAD', // Canadá
+    'MX': 'MXN', // México
+    'GT': 'GTQ', // Guatemala
+    'CR': 'CRC', // Costa Rica
+    'PA': 'PAB', // Panamá (usa USD también)
+    'SV': 'USD', // El Salvador (usa USD)
+    'HN': 'HNL', // Honduras
+    'NI': 'NIO', // Nicaragua
+
+    // --- Caribe ---
+    'JM': 'JMD', // Jamaica
+    'DO': 'DOP', // República Dominicana
+    'PR': 'USD', // Puerto Rico (USD)
+    'CU': 'CUP', // Cuba
+
+    // --- América del Sur ---
+    'BR': 'BRL', // Brasil
+    'AR': 'ARS', // Argentina
+    'CO': 'COP', // Colombia
+    'CL': 'CLP', // Chile
+    'PE': 'PEN', // Perú
+    'VE': 'VES', // Venezuela
+    'EC': 'USD', // Ecuador (usa USD)
+    'BO': 'BOB', // Bolivia
+    'PY': 'PYG', // Paraguay
+    'UY': 'UYU', // Uruguay
+
+    // --- Europa (Eurozona) ---
     'ES': 'EUR', // España
-    'FR': 'EUR', // Francia
     'DE': 'EUR', // Alemania
+    'FR': 'EUR', // Francia
+    'IT': 'EUR', // Italia
+    'PT': 'EUR', // Portugal
+    'NL': 'EUR', // Países Bajos
+    'BE': 'EUR', // Bélgica
+    'IE': 'EUR', // Irlanda
+    'AT': 'EUR', // Austria
+    'GR': 'EUR', // Grecia
+    'FI': 'EUR', // Finlandia
+
+    // --- Europa (Otras Monedas) ---
     'GB': 'GBP', // Reino Unido
-    // ... puedes añadir más países
+    'CH': 'CHF', // Suiza
+    'SE': 'SEK', // Suecia
+    'NO': 'NOK', // Noruega
+    'DK': 'DKK', // Dinamarca
+    'PL': 'PLN', // Polonia
+    'RU': 'RUB', // Rusia
+    'TR': 'TRY', // Turquía
+    'CZ': 'CZK', // República Checa
+    'HU': 'HUF', // Hungría
+    'UA': 'UAH', // Ucrania
+
+    // --- Asia ---
+    'CN': 'CNY', // China
+    'JP': 'JPY', // Japón
+    'IN': 'INR', // India
+    'KR': 'KRW', // Corea del Sur
+    'ID': 'IDR', // Indonesia
+    'SA': 'SAR', // Arabia Saudita
+    'AE': 'AED', // Emiratos Árabes Unidos
+    'IL': 'ILS', // Israel
+    'SG': 'SGD', // Singapur
+    'HK': 'HKD', // Hong Kong
+    'TH': 'THB', // Tailandia
+    'VN': 'VND', // Vietnam
+    'MY': 'MYR', // Malasia
+    'PH': 'PHP', // Filipinas
+    'PK': 'PKR', // Pakistán
+
+    // --- Oceanía ---
+    'AU': 'AUD', // Australia
+    'NZ': 'NZD', // Nueva Zelanda
+
+    // --- África ---
+    'ZA': 'ZAR', // Sudáfrica
+    'EG': 'EGP', // Egipto
+    'NG': 'NGN', // Nigeria
+    'MA': 'MAD', // Marruecos
+    'KE': 'KES', // Kenia
+
+    // Moneda por defecto si no se encuentra (opcional)
+    'default': 'MXN' 
 };
 
 // Función para cargar las tasas de cambio (se llama al iniciar el server)
@@ -382,53 +462,82 @@ app.post('/verify-login-code', async (req, res) => {
   }
 });
 
-// --- 5. SOLICITAR CAMBIO DE CONTRASEÑA ---
+// --- 5. SOLICITAR CAMBIO DE CONTRASEÑA (Corregido con SendGrid) ---
+
+// NOTA: Este código asume que ya definiste 'sgMail' y 'VERIFIED_SENDER'
+// en la parte superior de tu archivo, como en el ejemplo anterior.
+// const sgMail = require('@sendgrid/mail');
+// sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+// const VERIFIED_SENDER = 'digitalbiblioteca48@gmail.com';
+
 app.post('/request-password-reset', async (req, res) => {
-  const { email } = req.body;
-  try {
-    const user = await db.get('SELECT * FROM users WHERE email = $1', [email]);
-    if (!user) return res.status(404).json({ success: false, message: 'No se encontró un usuario con ese correo.' });
+  const { email } = req.body;
+  try {
+    const user = await db.get('SELECT * FROM users WHERE email = $1', [email]);
+    if (!user) {
+        // Importante: No reveles si el usuario existe o no.
+        // Responde siempre con un 'success: true' para no darle pistas a atacantes.
+        // El correo simplemente no se enviará si el email no existe.
+        console.warn(`⚠️ Solicitud de reseteo para email no existente: ${email}`);
+        return res.json({ success: true }); // No reveles que el usuario no existe
+    }
 
-    const resetToken = Math.floor(100000 + Math.random() * 900000).toString();
-    await db.run('UPDATE users SET verificationtoken = $1 WHERE email = $2', [resetToken, email]);
+    const resetToken = Math.floor(100000 + Math.random() * 900000).toString();
+    await db.run('UPDATE users SET verificationtoken = $1 WHERE email = $2', [resetToken, email]);
 
-    const emailContent = `
-      <p>Hola ${user.name},</p>
-      <p>Tu código para restablecer la contraseña es:</p>
-      <div style="font-size: 36px; letter-spacing: 10px; margin: 20px 0; padding: 15px; background-color: #1e1e1e; border-radius: 5px; text-align: center; color: #f7a610;">
-        <b>${resetToken}</b>
-      </div>
-    `;
+    const emailContent = `
+      <p>Hola ${user.name},</p>
+      <p>Tu código para restablecer la contraseña es:</p>
+      <div style="font-size: 36px; letter-spacing: 10px; margin: 20px 0; padding: 15px; background-color: #1e1e1e; border-radius: 5px; text-align: center; color: #f7a610;">
+        <b>${resetToken}</b>
+      </div>
+    `;
 
-    await transporter.sendMail({
-      from: '"Magnum Fitness" <digitalbiblioteca48@gmail.com>',
-      to: email,
-      subject: 'Código para Restablecer Contraseña',
-      html: createStyledEmail('Restablecer Contraseña', emailContent)
-    });
+    // --- INICIO DE CAMBIO ---
+    // Preparar mensaje para SendGrid
+    const msg = {
+      from: {
+          email: VERIFIED_SENDER,
+          name: 'Magnum Fitness'
+      },
+      to: email,
+      subject: 'Código para Restablecer Contraseña',
+      html: createStyledEmail('Restablecer Contraseña', emailContent)
+    };
 
-    res.json({ success: true });
-  } catch (error) {
-    console.error('❌ Error en /request-password-reset:', error);
-    res.status(500).json({ success: false, message: 'Error en el servidor.' });
-  }
+    // Enviar correo con SendGrid
+    console.log('📨 Intentando enviar correo de reseteo (SendGrid)...');
+    await sgMail.send(msg);
+    console.log('✅ Correo de reseteo enviado.');
+    // --- FIN DE CAMBIO ---
+
+    res.json({ success: true });
+
+  } catch (error) {
+    console.error('❌ Error en /request-password-reset:', error);
+    // Log de error específico de SendGrid
+    if (error.response) {
+      console.error('Error Body (SendGrid):', error.response.body);
+    }
+    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+  }
 });
 
-// --- 6. CAMBIAR CONTRASEÑA ---
+// --- 6. CAMBIAR CONTRASEÑA (Sin cambios, no envía correo) ---
 app.post('/reset-password-with-code', async (req, res) => {
-  const { email, code, newPassword } = req.body;
-  try {
-    const user = await db.get('SELECT * FROM users WHERE email = $1', [email]);
-    if (user && user.verificationtoken && user.verificationtoken.trim() === code.trim()) {
-      const newHashedPassword = crypto.createHash('sha256').update(newPassword).digest('hex');
-      await db.run('UPDATE users SET password = $1, verificationtoken = NULL WHERE email = $2', [newHashedPassword, email]);
-      return res.json({ success: true });
-    }
-    res.status(400).json({ success: false, message: 'El código es incorrecto o ha expirado.' });
-  } catch (error) {
-    console.error('❌ Error en /reset-password-with-code:', error);
-    res.status(500).json({ success: false, message: 'Error en el servidor.' });
-  }
+  const { email, code, newPassword } = req.body;
+  try {
+    const user = await db.get('SELECT * FROM users WHERE email = $1', [email]);
+    if (user && user.verificationtoken && user.verificationtoken.trim() === code.trim()) {
+      const newHashedPassword = crypto.createHash('sha256').update(newPassword).digest('hex');
+      await db.run('UPDATE users SET password = $1, verificationtoken = NULL WHERE email = $2', [newHashedPassword, email]);
+      return res.json({ success: true });
+    }
+    res.status(400).json({ success: false, message: 'El código es incorrecto o ha expirado.' });
+  } catch (error) {
+    console.error('❌ Error en /reset-password-with-code:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+  }
 });
 
 // --- 5. CERRAR SESIÓN ---
@@ -1101,7 +1210,7 @@ app.get('/my-purchases', async (req, res) => {
                 p.useremail,
                 p.productname,
                 p.total,
-                p.purchaseDate,
+                to_char(p.purchasedate AT TIME ZONE 'America/Mexico_City', 'DD/MM/YYYY') AS purchasedate,
                 p.status,
                 pr.name AS "product_name",
                 pr.description AS "product_description",
@@ -1123,32 +1232,73 @@ app.get('/my-purchases', async (req, res) => {
 });
 
 
+// --- Endpoint para SOLICITAR DEVOLUCIÓN (Corregido con SendGrid) ---
+
+// NOTA: Este código asume que ya definiste 'sgMail' y 'VERIFIED_SENDER'
+// en la parte superior de tu archivo, como en el ejemplo anterior.
+// const sgMail = require('@sendgrid/mail');
+// sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+// const VERIFIED_SENDER = 'digitalbiblioteca48@gmail.com';
+
 app.post('/request-return', async (req, res) => {
-    if (!req.session.user) { return res.status(401).json({ success: false, message: 'No autenticado' }); }
-    const { purchaseId } = req.body;
-    const userEmail = req.session.user.email;
-    try {
-        const purchase = await db.get('SELECT * FROM purchases WHERE id = $1 AND userEmail = $2', [purchaseId, userEmail]);
-        if (!purchase) { return res.status(404).json({ success: false, message: 'Compra no encontrada.' }); }
-        if (purchase.status !== 'COMPLETADO') { return res.status(400).json({ success: false, message: 'Esta compra ya tiene una solicitud.' }); }
-        await db.run('UPDATE purchases SET status = $1 WHERE id = $2', ['DEVOLUCIÓN SOLICITADA', purchaseId]);
+    if (!req.session.user) { return res.status(401).json({ success: false, message: 'No autenticado' }); }
+    
+    const { purchaseId } = req.body;
+    const userEmail = req.session.user.email;
+    const userName = req.session.user.name; // Obtenemos el nombre de la sesión
 
-        // Enviar correo de confirmación de solicitud
-        const emailContent = `
-            <p>Hola ${req.session.user.name},</p>
-            <p>Hemos recibido tu solicitud de devolución para el producto: <b>${purchase.productName}</b> (Folio: ${purchase.folio}).</p>
-            <p>Nuestro equipo revisará tu caso y se pondrá en contacto contigo pronto.</p>
-        `;
-        const mailOptions = {
-            from: '"Tu Tienda en Línea" <digitalbiblioteca48@gmail.com>',
-            to: userEmail,
-            subject: 'Solicitud de Devolución Recibida',
-            html: createStyledEmail('Devolución en Proceso', emailContent)
-        };
-        transporter.sendMail(mailOptions);
+    try {
+        // 1. Validar la compra
+        const purchase = await db.get('SELECT * FROM purchases WHERE id = $1 AND userEmail = $2', [purchaseId, userEmail]);
+        if (!purchase) { 
+            return res.status(404).json({ success: false, message: 'Compra no encontrada.' }); 
+        }
+        if (purchase.status !== 'COMPLETADO') { 
+            return res.status(400).json({ success: false, message: 'Esta compra ya tiene una solicitud.' }); 
+        }
 
-        res.json({ success: true });
-    } catch (error) { res.status(500).json({ success: false, message: 'Error en el servidor.' }); }
+        // 2. Actualizar el estado en la BD
+        await db.run('UPDATE purchases SET status = $1 WHERE id = $2', ['DEVOLUCIÓN SOLICITADA', purchaseId]);
+
+        // 3. Responder al usuario INMEDIATAMENTE
+        res.json({ success: true });
+
+        // --- INICIO DE CAMBIO ---
+        // 4. Intentar enviar correo de confirmación (después de responder)
+        try {
+            const emailContent = `
+                <p>Hola ${userName},</p>
+                <p>Hemos recibido tu solicitud de devolución para el producto: <b>${purchase.productName}</b> (Folio: ${purchase.folio}).</p>
+                <p>Nuestro equipo revisará tu caso y se pondrá en contacto contigo pronto.</p>
+            `;
+            
+            const msg = {
+                from: {
+                    email: VERIFIED_SENDER,
+                    name: 'Tu Tienda en Línea'
+                },
+                to: userEmail,
+                subject: 'Solicitud de Devolución Recibida',
+                html: createStyledEmail('Devolución en Proceso', emailContent)
+            };
+            
+            console.log('📨 Intentando enviar confirmación de devolución (SendGrid)...');
+            await sgMail.send(msg);
+            console.log('✅ Confirmación de devolución enviada.');
+
+        } catch (emailError) {
+            console.warn('⚠️ Falló el envío de la confirmación de devolución:');
+            if (emailError.response) {
+              console.warn('Error Body (SendGrid):', emailError.response.body);
+            }
+        }
+        // --- FIN DE CAMBIO ---
+
+    } catch (error) { 
+        // Este error solo se activa si falla la consulta a la BD
+        console.error('❌ Error en /request-return (BD):', error);
+        res.status(500).json({ success: false, message: 'Error en el servidor.' }); 
+    }
 });
 
 
