@@ -1210,7 +1210,7 @@ app.get('/my-purchases', async (req, res) => {
                 p.useremail,
                 p.productname,
                 p.total,
-                to_char(p.purchasedate AT TIME ZONE 'America/Mexico_City', 'DD/MM/YYYY') AS purchasedate,
+                p.purchaseDate,
                 p.status,
                 pr.name AS "product_name",
                 pr.description AS "product_description",
