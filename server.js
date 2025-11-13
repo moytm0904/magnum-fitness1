@@ -1028,30 +1028,59 @@ app.post('/validate-purchase', async (req, res) => {
 
 
 app.post('/process-purchase', async (req, res) => {
-    if (!req.session.user) { return res.status(401).json({ success: false, message: 'No has iniciado sesión.' }); }
-    const data = req.body;
-    const folio = `A${Date.now()}`;
-    const invoiceId = data.paypalTransactionId;
-    const purchaseDate = new Date().toISOString();
-    const total = parseFloat(data.price);
-    try {
-        await db.run(
-            'INSERT INTO purchases (userEmail, folio, invoiceId, productName, total, purchaseDate) VALUES ($1, $2, $3, $4, $5, $6)',
-            [data.userEmail, folio, invoiceId, data.productName, total, purchaseDate]
-        );
-        res.json({ success: true });
+    if (!req.session.user) { return res.status(401).json({ success: false, message: 'No has iniciado sesión.' }); }
+    const data = req.body;
+    const folio = `A${Date.now()}`;
+    const invoiceId = data.paypalTransactionId;
+    const purchaseDate = new Date().toISOString();
+    const total = parseFloat(data.price);
 
-        // Pasamos el MISMO invoiceId a la función del correo
-        const emailHtml = generateReceiptEmail(data, folio, invoiceId); 
-        const mailOptions = { 
-            from: '"Tu Tienda en Línea" <digitalbiblioteca48@gmail.com>', 
-            to: data.userEmail, 
-            subject: `¡GRACIAS POR TU COMPRA! ID de factura: ${invoiceId}`, // El asunto coincide
-            html: emailHtml
-        };
-        
-        transporter.sendMail(mailOptions);
-    } catch (error) { res.status(500).json({ success: false, message: 'No se pudo registrar la compra.' }); }
+    try {
+        // 1. Guardar la compra en la base de datos
+        await db.run(
+            'INSERT INTO purchases (userEmail, folio, invoiceId, productName, total, purchaseDate) VALUES ($1, $2, $3, $4, $5, $6)',
+            [data.userEmail, folio, invoiceId, data.productName, total, purchaseDate]
+        );
+
+        // 2. Responder al frontend INMEDIATAMENTE.
+        // El usuario no debe esperar a que se envíe el correo.
+        res.json({ success: true });
+
+        // --- INICIO DE CAMBIO ---
+        // 3. Intentar enviar el correo de recibo (después de responder)
+        // Lo envolvemos en su propio try/catch para que un fallo aquí
+        // no afecte la respuesta al usuario.
+        try {
+            const emailHtml = generateReceiptEmail(data, folio, invoiceId); 
+            
+            const msg = { 
+                from: {
+                    email: VERIFIED_SENDER,
+                    name: 'Tu Tienda en Línea'
+                }, 
+                to: data.userEmail, 
+                subject: `¡GRACIAS POR TU COMPRA! ID de factura: ${invoiceId}`,
+                html: emailHtml
+            };
+            
+            console.log('📨 Intentando enviar recibo de compra (SendGrid)...');
+            await sgMail.send(msg);
+            console.log('✅ Recibo de compra enviado.');
+
+        } catch (emailError) {
+            // Si falla el envío de correo, solo lo registramos como advertencia
+            console.warn('⚠️ Falló el envío del recibo de compra (la compra SÍ se guardó):');
+            if (emailError.response) {
+              console.warn('Error Body (SendGrid):', emailError.response.body);
+            }
+        }
+        // --- FIN DE CAMBIO ---
+
+    } catch (error) { 
+        // Este 'catch' solo se activará si falla el guardado en la BD
+        console.error('❌ Error al guardar la compra en la BD:', error);
+        res.status(500).json({ success: false, message: 'No se pudo registrar la compra.' }); 
+    }
 });
 
 // --- Endpoint para OBTENER historial de compras ---
