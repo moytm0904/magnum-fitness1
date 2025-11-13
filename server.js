@@ -1201,6 +1201,7 @@ app.get('/my-purchases', async (req, res) => {
     const userEmail = req.session.user.email;
 
     try {
+        // Consulta mejorada con JOIN para traer el producto completo
         const query = `
             SELECT 
                 p.id,
@@ -1209,22 +1210,19 @@ app.get('/my-purchases', async (req, res) => {
                 p.useremail,
                 p.productname,
                 p.total,
-                TO_CHAR(p.purchasedate, 'YYYY-MM-DD HH24:MI') AS purchasedate, -- 🔹 Formato legible
+                p.purchasedate,
                 p.status,
-                pr.name AS product_name,
-                pr.description AS product_description,
-                pr.image_url AS product_image,
-                pr.pdf_url AS pdf_url
+                pr.name AS "product_name",
+                pr.description AS "product_description",
+                pr.image_url AS "product_image",
+                pr.pdf_url AS "pdf_url"
             FROM purchases p
             LEFT JOIN products pr ON p.productname = pr.name
             WHERE p.useremail = $1
             ORDER BY p.purchasedate DESC
         `;
 
-        // 🔹 Para PostgreSQL:
-        const result = await db.query(query, [userEmail]);
-        const purchases = result.rows;
-
+        const purchases = await db.all(query, [userEmail]);
         res.json(purchases);
 
     } catch (error) {
@@ -1232,7 +1230,6 @@ app.get('/my-purchases', async (req, res) => {
         res.status(500).json({ message: "Error al obtener las compras.", error: error.message });
     }
 });
-
 
 
 // --- Endpoint para SOLICITAR DEVOLUCIÓN (Corregido con SendGrid) ---
