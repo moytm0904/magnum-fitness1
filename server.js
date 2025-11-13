@@ -1,7 +1,7 @@
 // server.js
 require('dotenv').config(); // <-- LEER ARCHIVO .env
 const express = require('express');
-const nodemailer = require('nodemailer');
+
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -10,7 +10,9 @@ const session = require('express-session');
 const cookieParser = require('cookie-parser');
 const cloudinary = require('cloudinary').v2; // <-- AÑADIDO
 const { generateInvoicePdfBuffer } = require('./generators/pdfGenerator');
-
+const sgMail = require('@sendgrid/mail');
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+const VERIFIED_SENDER = 'digitalbiblioteca48@gmail.com';
 
 // En la parte superior de server.js, junto a los otros 'require'
 
@@ -78,13 +80,7 @@ const environment = new paypal.core.LiveEnvironment(PAYPAL_CLIENT_ID, PAYPAL_CLI
 const client = new paypal.core.PayPalHttpClient(environment);
 
 // --- Configuración del Correo ---
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: 'digitalbiblioteca48@gmail.com', // <-- DESDE .env
-        pass: 'qeyo uonr xuif szgt'  // <-- DESDE .env
-    }
-});
+
 
 // ==========================================================
 // === FUNCIÓN PARA CREAR PLANTILLAS DE CORREO HTML ===
@@ -192,157 +188,198 @@ app.get('/api/location-currency', (req, res) => {
 
 
 
-// --- 1. REGISTRO ---
+// ==========================================================
+// === RUTAS DE AUTENTICACIÓN CORREGIDAS CON SENDGRID ===
+// ==========================================================
+
+// --- 1. REGISTRO (Corregido con SendGrid) ---
 app.post('/register', async (req, res) => {
-  const { email, name, password } = req.body;
-  const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
+  const { email, name, password } = req.body;
+  const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
 
-  try {
-    const existing = await db.get('SELECT * FROM users WHERE email = $1', [email]);
-    if (existing) {
-      return res.status(400).json({ success: false, message: 'El correo ya está registrado.' });
-    }
+  try {
+    const existing = await db.get('SELECT * FROM users WHERE email = $1', [email]);
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'El correo ya está registrado.' });
+    }
 
-    const verificationToken = Math.floor(100000 + Math.random() * 900000).toString();
+    const verificationToken = Math.floor(100000 + Math.random() * 900000).toString();
 
-    await db.run(
-      'INSERT INTO users (email, name, password, verificationtoken, isverified) VALUES ($1, $2, $3, $4, FALSE)',
-      [email, name, hashedPassword, verificationToken]
-    );
+    await db.run(
+      'INSERT INTO users (email, name, password, verificationtoken, isverified) VALUES ($1, $2, $3, $4, FALSE)',
+      [email, name, hashedPassword, verificationToken]
+    );
 
-    const emailContent = `
-      <p>Hola ${name},</p>
-      <p>Tu código para activar tu cuenta es:</p>
-      <div style="font-size: 36px; letter-spacing: 10px; margin: 20px 0; padding: 15px; background-color: #1e1e1e; border-radius: 5px; text-align: center; color: #f7a610;">
-        <b>${verificationToken}</b>
-      </div>
-      <p>Ingrésalo en la página para completar tu registro.</p>
-    `;
+    const emailContent = `
+      <p>Hola ${name},</p>
+      <p>Tu código para activar tu cuenta es:</p>
+      <div style="font-size: 36px; letter-spacing: 10px; margin: 20px 0; padding: 15px; background-color: #1e1e1e; border-radius: 5px; text-align: center; color: #f7a610;">
+        <b>${verificationToken}</b>
+      </div>
+      <p>Ingrésalo en la página para completar tu registro.</p>
+    `;
 
-    await transporter.sendMail({
-      from: '"Magnum Fitness" <digitalbiblioteca48@gmail.com>',
-      to: email,
-      subject: 'Código para Activar tu Cuenta',
-      html: createStyledEmail('Activa tu Cuenta', emailContent)
-    });
+    // --- INICIO DE CAMBIO ---
+    // Preparamos el mensaje para SendGrid
+    const msg = {
+      to: email,
+      from: {
+        email: VERIFIED_SENDER,
+        name: 'Magnum Fitness'
+      },
+      subject: 'Código para Activar tu Cuenta',
+      html: createStyledEmail('Activa tu Cuenta', emailContent) // Usamos tu misma función
+    };
 
-    res.json({ success: true });
-  } catch (error) {
-    console.error('❌ Error en /register:', error);
-    res.status(500).json({ success: false, message: 'Error interno del servidor.' });
-  }
+    console.log('📨 Intentando enviar correo de registro (SendGrid)...');
+    // Reemplazamos transporter.sendMail por sgMail.send
+    await sgMail.send(msg);
+    console.log('✅ Correo de registro enviado.');
+    // --- FIN DE CAMBIO ---
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('❌ Error en /register:', error);
+    // Este log es clave para depurar SendGrid si algo falla
+    if (error.response) {
+      console.error('Error Body (SendGrid):', error.response.body);
+    }
+    res.status(500).json({ success: false, message: 'Error interno del servidor.' });
+  }
 });
 
-// --- 2. VERIFICACIÓN DE CORREO ---
+// --- 2. VERIFICACIÓN DE CORREO (Esta ruta no envía correos, se queda igual) ---
 app.post('/verify-email', async (req, res) => {
-  const { email, token } = req.body;
-  try {
-    const user = await db.get('SELECT verificationtoken FROM users WHERE email = $1', [email]);
-    if (user && user.verificationtoken && user.verificationtoken.trim() === token.trim()) {
-      await db.run('UPDATE users SET isverified = TRUE, verificationtoken = NULL WHERE email = $1', [email]);
-      return res.json({ success: true });
-    }
-    res.status(400).json({ success: false, message: 'El código no es válido o ha expirado.' });
-  } catch (error) {
-    console.error('❌ Error en /verify-email:', error);
-    res.status(500).json({ success: false, message: 'Error en el servidor.' });
-  }
+  const { email, token } = req.body;
+  try {
+    const user = await db.get('SELECT verificationtoken FROM users WHERE email = $1', [email]);
+    if (user && user.verificationtoken && user.verificationtoken.trim() === token.trim()) {
+      await db.run('UPDATE users SET isverified = TRUE, verificationtoken = NULL WHERE email = $1', [email]);
+      return res.json({ success: true });
+    }
+    res.status(400).json({ success: false, message: 'El código no es válido o ha expirado.' });
+  } catch (error) {
+    console.error('❌ Error en /verify-email:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+  }
 });
 
 
 
-// --- 3. INICIO DE SESIÓN (PostgreSQL) ---
+// --- 3. INICIO DE SESIÓN (Corregido con SendGrid) ---
 app.post('/login', async (req, res) => {
-  const { email, password } = req.body;
-  console.log('🟦 /login recibido:', email);
+  const { email, password } = req.body;
+  console.log('🟦 /login recibido:', email);
 
-  try {
-    // Buscar usuario
-    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    const user = result.rows[0];
+  try {
+    // ... (Todo tu código para buscar usuario, verificar contraseña y 'isverified' está perfecto) ...
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const user = result.rows[0];
 
-    if (!user) {
-      console.log('❌ Usuario no encontrado');
-      return res.status(401).json({ success: false, message: 'Usuario o contraseña incorrectos.' });
-    }
+    if (!user) {
+      console.log('❌ Usuario no encontrado');
+      return res.status(401).json({ success: false, message: 'Usuario o contraseña incorrectos.' });
+    }
+    const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
+    if (user.password !== hashedPassword) {
+      console.log('❌ Contraseña incorrecta');
+      return res.status(401).json({ success: false, message: 'Usuario o contraseña incorrectos.' });
+    }
+    if (!user.isverified) {
+      console.log('⚠️ Usuario no verificado');
+      return res.status(401).json({ success: false, message: 'Tu cuenta no ha sido verificada.' });
+    }
 
-    // Verificar contraseña
-    const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
-    if (user.password !== hashedPassword) {
-      console.log('❌ Contraseña incorrecta');
-      return res.status(401).json({ success: false, message: 'Usuario o contraseña incorrectos.' });
-    }
+    // ... (Tu código para generar 'loginToken' y guardarlo en la BD está perfecto) ...
+    const loginToken = Math.floor(100000 + Math.random() * 900000).toString();
+    console.log('🔢 Token generado:', loginToken);
+    await pool.query(
+      'UPDATE users SET verificationtoken = $1 WHERE email = $2;',
+      [loginToken, email]
+    );
+    console.log('📦 Token guardado en BD');
 
-    // Verificar cuenta activada
-    if (!user.isverified) {
-      console.log('⚠️ Usuario no verificado');
-      return res.status(401).json({ success: false, message: 'Tu cuenta no ha sido verificada.' });
-    }
+    // Enviar correo
+    const emailContent = `
+      <p>Hola ${user.name},</p>
+      <p>Tu código para completar el inicio de sesión es:</p>
+      <div style="font-size: 36px; letter-spacing: 10px; margin: 20px 0; padding: 15px; background-color: #1e1e1e; border-radius: 5px; text-align: center; color: #f7a610;">
+        <b>${loginToken}</b>
+      </div>
+    `;
 
-    // Generar token
-    const loginToken = Math.floor(100000 + Math.random() * 900000).toString();
-    console.log('🔢 Token generado:', loginToken);
+    // --- INICIO DE CAMBIO ---
+    const msg = {
+      to: email,
+      from: { 
+          email: VERIFIED_SENDER, 
+          name: 'Magnum Fitness'
+      },
+      subject: 'Código para Iniciar Sesión',
+      html: createStyledEmail('Verifica tu Inicio de Sesión', emailContent)
+    };
 
-    // Guardar token
-    await pool.query(
-      'UPDATE users SET verificationtoken = $1 WHERE email = $2;',
-      [loginToken, email]
-    );
-    console.log('📦 Token guardado en BD');
+    console.log('📨 Intentando enviar correo de login (SendGrid)...');
+    await sgMail.send(msg); // Reemplazamos transporter.sendMail
+    console.log('✅ Correo de login enviado correctamente');
+    // --- FIN DE CAMBIO ---
 
-    // Enviar correo
-    const emailContent = `
-      <p>Hola ${user.name},</p>
-      <p>Tu código para completar el inicio de sesión es:</p>
-      <div style="font-size: 36px; letter-spacing: 10px; margin: 20px 0; padding: 15px; background-color: #1e1e1e; border-radius: 5px; text-align: center; color: #f7a610;">
-        <b>${loginToken}</b>
-      </div>
-    `;
-
-    const mailOptions = {
-      from: '"Magnum Fitness" <digitalbiblioteca48@gmail.com>',
-      to: email,
-      subject: 'Código para Iniciar Sesión',
-      html: createStyledEmail('Verifica tu Inicio de Sesión', emailContent)
-    };
-
-    console.log('📨 Intentando enviar correo...');
-    await transporter.sendMail(mailOptions);
-    console.log('✅ Correo enviado correctamente');
-
-    res.json({ success: true });
-  } catch (error) {
-    console.error('❌ Error en /login:', error);
-    res.status(500).json({ success: false, message: 'Error interno del servidor.' });
-  }
+    res.json({ success: true });
+  } catch (error) {
+    console.error('❌ Error en /login:', error);
+    // Log de error específico de SendGrid
+    if (error.response) {
+      console.error('Error Body (SendGrid):', error.response.body);
+    }
+    res.status(500).json({ success: false, message: 'Error interno del servidor.' });
+  }
 });
 
 
 
 
-// --- 4. VERIFICACIÓN DE CÓDIGO LOGIN (2FA) ---
+// --- 4. VERIFICACIÓN DE CÓDIGO LOGIN (2FA) (Corregido con SendGrid) ---
 app.post('/verify-login-code', async (req, res) => {
-  const { email, token } = req.body;
-  try {
-    const user = await db.get('SELECT * FROM users WHERE email = $1', [email]);
-    if (user && user.verificationtoken && user.verificationtoken.trim() === token.trim()) {
-      await db.run('UPDATE users SET verificationtoken = NULL WHERE email = $1', [email]);
-      req.session.user = { email: user.email, name: user.name };
+  const { email, token } = req.body;
+  try {
+    const user = await db.get('SELECT * FROM users WHERE email = $1', [email]);
+    if (user && user.verificationtoken && user.verificationtoken.trim() === token.trim()) {
+      await db.run('UPDATE users SET verificationtoken = NULL WHERE email = $1', [email]);
+      req.session.user = { email: user.email, name: user.name };
 
-      await transporter.sendMail({
-        from: '"Magnum Fitness" <digitalbiblioteca48@gmail.com>',
-        to: email,
-        subject: 'Alerta de Seguridad: Nuevo Inicio de Sesión',
-        html: createStyledEmail('Alerta de Seguridad', `<p>Hola ${user.name}, se detectó un nuevo inicio de sesión.</p>`)
-      });
+      // --- INICIO DE CAMBIO ---
+      // Enviar la alerta de seguridad.
+      // Lo envolvemos en su propio try/catch para que, si falla el envío
+      // de la alerta, el usuario AÚN PUEDA iniciar sesión.
+      const msg = {
+        from: { 
+            email: VERIFIED_SENDER, 
+            name: 'Magnum Fitness'
+        },
+        to: email,
+        subject: 'Alerta de Seguridad: Nuevo Inicio de Sesión',
+        html: createStyledEmail('Alerta de Seguridad', `<p>Hola ${user.name}, se detectó un nuevo inicio de sesión.</p>`)
+      };
 
-      return res.json({ success: true });
-    }
-    res.status(400).json({ success: false, message: 'Código incorrecto o expirado.' });
-  } catch (error) {
-    console.error('❌ Error en /verify-login-code:', error);
-    res.status(500).json({ success: false, message: 'Error en el servidor.' });
-  }
+      console.log('📨 Intentando enviar alerta de login (SendGrid)...');
+      try {
+        await sgMail.send(msg);
+        console.log('✅ Alerta de login enviada.');
+      } catch (emailError) {
+        console.warn('⚠️ Falló el envío de la alerta de email, pero el login fue exitoso.');
+        if (emailError.response) {
+          console.warn('Error Body (SendGrid):', emailError.response.body);
+        }
+      }
+      // --- FIN DE CAMBIO ---
+
+      return res.json({ success: true });
+    }
+    res.status(400).json({ success: false, message: 'Código incorrecto o expirado.' });
+  } catch (error) {
+    console.error('❌ Error en /verify-login-code:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+  }
 });
 
 // --- 5. SOLICITAR CAMBIO DE CONTRASEÑA ---
