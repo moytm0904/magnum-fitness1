@@ -215,9 +215,7 @@ const countryToCurrency = {
     'PH': 'PHP', // Filipinas
     'PK': 'PKR', // Pakistán
 
-    // --- Oceanía ---
-    'AU': 'AUD', // Australia
-    'NZ': 'NZD', // Nueva Zelanda
+ 
 
     // --- África ---
     'ZA': 'ZAR', // Sudáfrica
