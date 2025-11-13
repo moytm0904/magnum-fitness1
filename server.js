@@ -1122,44 +1122,72 @@ app.post('/request-return', async (req, res) => {
     } catch (error) { res.status(500).json({ success: false, message: 'Error en el servidor.' }); }
 });
 
-// --- Endpoint de Facturación (100% en memoria y compatible con hosting) ---
+
+
 app.post('/enviar-factura', async (req, res) => {
-    try {
-        const data = req.body;
+    try {
+        const data = req.body;
 
-        // 1️⃣ Generar el XML directamente como Buffer (sin escribir archivo)
-        const xmlContent = generateXML(data);
-        const xmlBuffer = Buffer.from(xmlContent, 'utf-8');
+        // 1️⃣ Generar el XML (sin cambios)
+        const xmlContent = generateXML(data);
+        const xmlBuffer = Buffer.from(xmlContent, 'utf-8');
 
-        // 2️⃣ Generar el PDF directamente en memoria
-        const pdfBuffer = await generateInvoicePdfBuffer(data);
+        // 2️⃣ Generar el PDF (sin cambios)
+        const pdfBuffer = await generateInvoicePdfBuffer(data);
 
-        // 3️⃣ Preparar el contenido del correo
-        const emailContent = `
-            <p>Estimado cliente,</p>
-            <p>Adjuntamos su factura electrónica con RFC <b>${data.rfc}</b> en formatos PDF y XML.</p>
-        `;
+        // 3️⃣ Preparar el contenido del correo (sin cambios)
+        const emailContent = `
+            <p>Estimado cliente,</p>
+            <p>Adjuntamos su factura electrónica con RFC <b>${data.rfc}</b> en formatos PDF y XML.</p>
+        `;
 
-        const mailOptions = {
-            from: '"Tu Portal de Facturación" <digitalbiblioteca48@gmail.com>',
-            to: data.emailReceptor,
-            subject: `Factura Electrónica de su Compra`,
-            html: createStyledEmail('Factura Electrónica', emailContent),
-            attachments: [
-                { filename: `Factura-${data.rfc}.pdf`, content: pdfBuffer },
-                { filename: `Factura-${data.rfc}.xml`, content: xmlBuffer }
-            ]
-        };
+        // --- INICIO DE CAMBIO ---
 
-        // 4️⃣ Enviar el correo
-        await transporter.sendMail(mailOptions);
+        // 4️⃣ Convertir Buffers a Base64 (Requerido por SendGrid)
+        const pdfBase64 = pdfBuffer.toString('base64');
+        const xmlBase64 = xmlBuffer.toString('base64');
 
-        res.json({ success: true, message: "Factura enviada exitosamente al correo del cliente." });
+        // 5️⃣ Preparar el mensaje para SendGrid
+        const msg = {
+            to: data.emailReceptor,
+            from: {
+                email: VERIFIED_SENDER,
+                name: "Tu Portal de Facturación"
+            },
+            subject: `Factura Electrónica de su Compra`,
+            html: createStyledEmail('Factura Electrónica', emailContent),
+            attachments: [
+                { 
+                    content: pdfBase64,
+                    filename: `Factura-${data.rfc}.pdf`,
+                    type: 'application/pdf',
+                    disposition: 'attachment'
+                },
+                { 
+                    content: xmlBase64,
+                    filename: `Factura-${data.rfc}.xml`,
+                    type: 'application/xml', // o 'text/xml'
+                    disposition: 'attachment'
+                }
+            ]
+        };
 
-    } catch (error) {
-        console.error("❌ Error al generar o enviar la factura:", error);
-        res.status(500).json({ success: false, message: "Error al generar o enviar la factura." });
-    }
+        // 6️⃣ Enviar el correo con SendGrid
+        console.log('📨 Intentando enviar factura (SendGrid)...');
+        await sgMail.send(msg);
+        console.log('✅ Factura enviada correctamente.');
+        // --- FIN DE CAMBIO ---
+
+        res.json({ success: true, message: "Factura enviada exitosamente al correo del cliente." });
+
+    } catch (error) {
+        console.error("❌ Error al generar o enviar la factura:", error);
+        // Log de error específico de SendGrid
+        if (error.response) {
+          console.error('Error Body (SendGrid):', error.response.body);
+        }
+        res.status(500).json({ success: false, message: "Error al generar o enviar la factura." });
+    }
 });
 
 
