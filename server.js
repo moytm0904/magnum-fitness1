@@ -557,45 +557,67 @@ app.get('/check-session', (req, res) => {
 });
 
 // ==========================================================
-// === ENDPOINTS DE PAGO CON PAYPAL (MODIFICADO) ===
+// === ENDPOINTS DE PAGO CON PAYPAL (Corregidos) ===
 // ==========================================================
-app.post('/api/orders', async (req, res) => {
-    // AHORA RECIBE LA MONEDA DESDE EL FRONTEND
-    const { totalAmount, currencyCode } = req.body; 
-    
-    const request = new paypal.orders.OrdersCreateRequest();
-    request.prefer("return=representation");
-    request.requestBody({
-        intent: 'CAPTURE',
-        purchase_units: [{
-            amount: {
-                currency_code: currencyCode || 'MXN', // Usa la moneda del usuario
-                value: totalAmount // Usa el total ya convertido
-            }
-        }]
-    });
 
-    try {
-        const order = await client.execute(request);
-        res.status(200).json({ id: order.result.id });
-    } catch (err) {
-        res.status(500).send(err.message);
+// NOTA: Este código asume que 'client' (el cliente de PayPal) ya fue definido.
+
+/**
+ * Endpoint para CREAR una orden de PayPal.
+ * Recibe el monto y la moneda dinámicamente desde el frontend.
+ */
+app.post('/api/orders', async (req, res) => {
+    const { totalAmount, currencyCode } = req.body; 
+
+    // 1. Validar que recibimos los datos
+    if (!totalAmount || !currencyCode) {
+        return res.status(400).send('Faltan "totalAmount" o "currencyCode".');
     }
+    
+    console.log(`Attempting to create order: ${totalAmount} ${currencyCode}`);
+
+    const request = new paypal.orders.OrdersCreateRequest();
+    request.prefer("return=representation");
+    request.requestBody({
+        intent: 'CAPTURE',
+        purchase_units: [{
+            amount: {
+                // 2. CORRECCIÓN: Usamos la 'currencyCode' exacta que manda el frontend.
+                // Si el script de PayPal y este código no coinciden, PayPal dará error.
+                currency_code: currencyCode, 
+                value: totalAmount 
+            }
+        }]
+    });
+
+    try {
+        const order = await client.execute(request);
+        res.status(200).json({ id: order.result.id });
+    } catch (err) {
+        // 3. CORRECCIÓN: Loguear el error de PayPal en tus logs de Render.
+        // Aquí es donde verás el error "Expected currency..." si ocurre.
+        console.error("❌ Error al crear orden de PayPal:", err.message); 
+        res.status(500).send(err.message);
+    }
 });
 
+/**
+ * Endpoint para CAPTURAR el pago después de la aprobación del usuario.
+ */
 app.post('/api/orders/:orderID/capture', async (req, res) => {
-    const { orderID } = req.params;
-    const request = new paypal.orders.OrdersCaptureRequest(orderID);
-    request.requestBody({});
+    const { orderID } = req.params;
+    const request = new paypal.orders.OrdersCaptureRequest(orderID);
+    request.requestBody({});
 
-    try {
-        const capture = await client.execute(request);
-        // Aquí es donde obtienes la respuesta exitosa de PayPal
-        res.status(200).json(capture.result);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send(err.message);
-    }
+    try {
+        const capture = await client.execute(request);
+        // El pago fue exitoso
+        res.status(200).json(capture.result);
+    } catch (err) {
+        // 4. CORRECCIÓN: Loguear el error de captura.
+        console.error("❌ Error al capturar pago de PayPal:", err.message);
+        res.status(500).send(err.message);
+    }
 });
 
 
