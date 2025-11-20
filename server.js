@@ -242,22 +242,32 @@ async function updateExchangeRates() {
     }
 }
 
-// Endpoint para que el frontend obtenga la moneda y la tasa
+// Endpoint para obtener moneda (por IP) O tasa de cambio específica
 app.get('/api/location-currency', (req, res) => {
+    const targetCurrency = req.query.currency; // ¿El usuario pidió una moneda específica?
+
     let userCurrency = 'MXN'; // Moneda por defecto
     let conversionRate = 1;
-    
-    const userIp = req.ip; // Obtener la IP del visitante
-    const geo = geoip.lookup(userIp);
-    
-    if (geo && countryToCurrency[geo.country]) {
-        const currency = countryToCurrency[geo.country];
-        if (exchangeRates[currency]) {
-            userCurrency = currency;
-            conversionRate = exchangeRates[currency];
+
+    // 1. Si el usuario pidió una moneda específica (clic en bandera)
+    if (targetCurrency && exchangeRates[targetCurrency]) {
+        userCurrency = targetCurrency;
+        conversionRate = exchangeRates[targetCurrency];
+    } 
+    // 2. Si no, intentamos detectar por IP (GeoIP) - Tu lógica original
+    else {
+        const userIp = req.ip;
+        const geo = geoip.lookup(userIp);
+        
+        if (geo && countryToCurrency[geo.country]) {
+            const detectedCurrency = countryToCurrency[geo.country];
+            if (exchangeRates[detectedCurrency]) {
+                userCurrency = detectedCurrency;
+                conversionRate = exchangeRates[detectedCurrency];
+            }
         }
     }
-    
+
     res.json({
         currencyCode: userCurrency,
         conversionRate: conversionRate
