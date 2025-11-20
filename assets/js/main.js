@@ -122,7 +122,7 @@ function main() {
         }
     };
 
-    // ==========================================================
+     // ==========================================================
     // === 3. LOGICA DE CAMBIO DE MONEDA (BANDERAS) ===
     // ==========================================================
     
@@ -162,8 +162,21 @@ function main() {
 
     function getFlagEmoji(currency) {
         const map = { 
-            'MXN': '🇲🇽', 'USD': '🇺🇸', 'EUR': '🇪🇺', 'CAD': '🇨🇦', 
-            'GBP': '🇬🇧', 'JPY': '🇯🇵', 'ARS': '🇦🇷', 'COP': '🇨🇴'
+            'MXN': '🇲🇽', // México
+            'USD': '🇺🇸', // Estados Unidos
+            'EUR': '🇪🇺', // Unión Europea
+            'CAD': '🇨🇦', // Canadá
+            'GBP': '🇬🇧', // Reino Unido
+            'JPY': '🇯🇵', // Japón
+            'ARS': '🇦🇷', // Argentina
+            'COP': '🇨🇴', // Colombia
+            'BRL': '🇧🇷', // Brasil
+            'CLP': '🇨🇱', // Chile
+            'PEN': '🇵🇪', // Perú
+            'UYU': '🇺🇾', // Uruguay
+            'AUD': '🇦🇺', // Australia
+            'CNY': '🇨🇳', // China
+            'INR': '🇮🇳'  // India
         };
         return map[currency] || '🌐';
     }
@@ -181,17 +194,29 @@ function main() {
             <li class="nav-item"><a class="nav-link" href="#productos">Productos</a></li>
         `;
 
-        // --- Selector de Banderas ---
+        // --- Selector de Banderas (ACTUALIZADO) ---
+        // Aquí agregamos los botones para las nuevas monedas
         const currencySelectorHtml = `
             <li class="nav-item dropdown ms-lg-2">
                 <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" title="Cambiar Moneda">
                     <span id="current-currency-flag" style="font-size: 1.2rem;">${getFlagEmoji(userCurrency)}</span>
                 </a>
-                <ul class="dropdown-menu dropdown-menu-dark" style="min-width: auto;">
-                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('MXN')">🇲🇽 MXN</button></li>
-                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('USD')">🇺🇸 USD</button></li>
-                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('EUR')">🇪🇺 EUR</button></li>
-                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('CAD')">🇨🇦 CAD</button></li>
+                <ul class="dropdown-menu dropdown-menu-dark" style="min-width: auto; max-height: 300px; overflow-y: auto;">
+                    <li><h6 class="dropdown-header">América</h6></li>
+                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('MXN')">🇲🇽 MXN (Peso Mexicano)</button></li>
+                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('USD')">🇺🇸 USD (Dólar)</button></li>
+                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('CAD')">🇨🇦 CAD (Dólar Canadiense)</button></li>
+                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('ARS')">🇦🇷 ARS (Peso Argentino)</button></li>
+                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('COP')">🇨🇴 COP (Peso Colombiano)</button></li>
+                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('BRL')">🇧🇷 BRL (Real Brasileño)</button></li>
+                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('CLP')">🇨🇱 CLP (Peso Chileno)</button></li>
+                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('PEN')">🇵🇪 PEN (Sol Peruano)</button></li>
+                    
+                    <li><hr class="dropdown-divider"></li>
+                    <li><h6 class="dropdown-header">Europa & Mundo</h6></li>
+                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('EUR')">🇪🇺 EUR (Euro)</button></li>
+                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('GBP')">🇬🇧 GBP (Libra Esterlina)</button></li>
+                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('JPY')">🇯🇵 JPY (Yen Japonés)</button></li>
                 </ul>
             </li>
         `;
