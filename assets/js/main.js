@@ -1,116 +1,181 @@
 function main() {
-    // Esta función se ejecuta solo DESPUÉS de que todo el HTML de los componentes se ha cargado.
+    // Inicializar animaciones
     AOS.init({ duration: 800, once: true });
 
-    // ===== VARIABLES GLOBALES =====
+    // ==========================================================
+    // === 1. VARIABLES GLOBALES ===
+    // ==========================================================
     let cart = [];
     let currentUserEmail = null;
-    let userPurchases = []; // Para el historial de compras
-    let allProducts = []; // Para acceder a los datos del producto
+    let userPurchases = []; 
+    let allProducts = [];
     
-    // --- VARIABLES DE MONEDA ---
+    // --- VARIABLES DE MONEDA (NUEVO) ---
     let userCurrency = 'MXN';
     let conversionRate = 1;
     
-    // --- CONFIGURACIÓN DE PAYPAL ---
+    // --- CONFIGURACIÓN DE PAYPAL (NUEVO) ---
     const PAYPAL_CLIENT_ID = 'AT16Qo7wfSCrBn9YBDsi-GfsTTI4ce411w4BM2GMNNM-iaVRajGBBC_VfvQFiNbiYDk4IzlJ1sXgigLc';
     let isPayPalScriptLoaded = false; 
     let currentPayPalCurrency = '';
 
-    // El resto de las variables de elementos se inicializan después
-    let cartCountEl, cartItemsContainer, cartTotalEl, checkoutContainer, paymentStatusEl, cartModalEl, cartModal, dynamicNavLinks, toastEl, toast;
+    // Elementos del DOM
+    let cartCountEl, cartItemsContainer, cartTotalEl, checkoutContainer, paymentStatusEl, cartModalEl, cartModal, dynamicNavLinks;
+    let toastEl, toast, toastBodyEl; 
     let pdfViewerModalEl, pdfViewerModal, pdfCanvas, pdfCanvasContainer, pageNumEl, pageCountEl, prevPageBtn, nextPageBtn, zoomInBtn, zoomOutBtn;
     let purchasedModalEl, purchasedModal, purchasedProductNameEl;
-    let productDetailModalEl, productDetailModal; // Para reseñas
+    let productDetailModalEl, productDetailModal; 
     
+    // Variables para PDF
     let pdfDoc = null, pageNum = 1, pageIsRendering = false, pageNumIsPending = null, previewPageLimit = 0;
-    let currentScale = 1.0; // Zoom inicial
+    let currentScale = 1.0; 
 
-    // --- 1. Inicializar todas las variables del DOM ---
+    // ==========================================================
+    // === 2. INICIALIZACIÓN DEL DOM ===
+    // ==========================================================
     function initializeDOMElements() {
         cartItemsContainer = document.getElementById('cartItemsContainer');
         cartTotalEl = document.getElementById('cartTotal');
         checkoutContainer = document.getElementById('checkout-container');
         paymentStatusEl = document.getElementById('payment-status');
-        cartModalEl = document.getElementById('cartModal');
-        cartModal = new bootstrap.Modal(cartModalEl);
+        
+        const cartEl = document.getElementById('cartModal');
+        if (cartEl) {
+            cartModalEl = cartEl;
+            cartModal = new bootstrap.Modal(cartModalEl);
+        }
+
         dynamicNavLinks = document.getElementById('dynamic-nav-links');
         
-        toastEl = document.getElementById('liveToast');
+        // Toast (Notificaciones)
+        toastEl = document.getElementById('liveToast'); 
         if (toastEl) {
+            toastBodyEl = toastEl.querySelector('.toast-body-main') || toastEl.querySelector('.toast-body');
             toast = new bootstrap.Toast(toastEl);
         }
         
+        // Visor PDF
         pdfViewerModalEl = document.getElementById('pdfViewerModal');
-        pdfViewerModal = new bootstrap.Modal(pdfViewerModalEl);
-        pdfCanvas = document.getElementById('pdf-canvas');
-        pdfCanvasContainer = document.getElementById('pdf-canvas-container');
-        pageNumEl = document.getElementById('page-num');
-        pageCountEl = document.getElementById('page-count');
-        prevPageBtn = document.getElementById('prev-page');
-        nextPageBtn = document.getElementById('next-page');
-        zoomInBtn = document.getElementById('zoom-in');
-        zoomOutBtn = document.getElementById('zoom-out');
+        if (pdfViewerModalEl) {
+            pdfViewerModal = new bootstrap.Modal(pdfViewerModalEl);
+            pdfCanvas = document.getElementById('pdf-canvas');
+            pdfCanvasContainer = document.getElementById('pdf-canvas-container');
+            pageNumEl = document.getElementById('page-num');
+            pageCountEl = document.getElementById('page-count');
+            prevPageBtn = document.getElementById('prev-page');
+            nextPageBtn = document.getElementById('next-page');
+            zoomInBtn = document.getElementById('zoom-in');
+            zoomOutBtn = document.getElementById('zoom-out');
+        }
         
+        // Modals
         purchasedModalEl = document.getElementById('alreadyPurchasedModal');
-        purchasedModal = new bootstrap.Modal(purchasedModalEl);
-        purchasedProductNameEl = document.getElementById('purchased-product-name');
+        if (purchasedModalEl) {
+            purchasedModal = new bootstrap.Modal(purchasedModalEl);
+            purchasedProductNameEl = document.getElementById('purchased-product-name');
+        }
 
         productDetailModalEl = document.getElementById('productDetailModal');
-        productDetailModal = new bootstrap.Modal(productDetailModalEl);
+        if (productDetailModalEl) {
+            productDetailModal = new bootstrap.Modal(productDetailModalEl);
+        }
     }
 
     // ==========================================================
-    // === NUEVAS FUNCIONES AGREGADAS (Para corregir errores) ===
+    // === 3. FUNCIONES DE TOAST (NOTIFICACIONES) ===
     // ==========================================================
 
-    // 1. Función auxiliar para mostrar Toast (Corrige el ReferenceError)
     function showAppToast(message, type = 'info') {
         if (!toastEl || !toast) return console.log(message);
         
-        // Intentar usar el cuerpo del toast existente o crear uno genérico
-        const toastBody = toastEl.querySelector('.toast-body') || toastEl.querySelector('.toast-body-main');
         const specificItemEl = document.getElementById('toast-item-name-container');
-        if (specificItemEl) specificItemEl.style.display = 'none'; // Ocultar detalles de producto
+        if (specificItemEl) specificItemEl.style.display = 'none'; 
         
-        if (toastBody) {
-            toastBody.textContent = message;
-            toastBody.style.display = 'block';
+        if(toastBodyEl) {
+            toastBodyEl.textContent = message;
+            toastBodyEl.style.display = 'block';
         }
         
-        // Colores
         toastEl.className = `toast align-items-center text-white border-0 bg-${type === 'error' ? 'danger' : type === 'success' ? 'success' : 'primary'}`;
         toast.show();
     }
+    
+    function showItemAddedToast(name) {
+        if (!toastEl || !toast) return;
+        if (toastBodyEl) toastBodyEl.style.display = 'none'; 
+        const specificItemEl = document.getElementById('toast-item-name-container');
+        if (specificItemEl) {
+            const nameEl = document.getElementById('toast-item-name');
+            if(nameEl) nameEl.textContent = name;
+            specificItemEl.style.display = 'block';
+        }
+        toastEl.className = 'toast align-items-center text-white border-0 bg-success';
+        toast.show();
+    }
 
-    // 2. Mapa de Banderas
+    // ==========================================================
+    // === 4. UTILIDADES GENERALES ===
+    // ==========================================================
+
+    const formatMoney = (n) => n.toFixed(2);
+    const calculateTotal = () => cart.reduce((total, item) => total + (item.price * item.qty), 0);
+    
+    const updateCartBadge = () => {
+        const el = document.getElementById('cart-count');
+        if (el) el.textContent = cart.reduce((s, it) => s + it.qty, 0);
+    };
+
+    const saveCartToStorage = () => { if (currentUserEmail) localStorage.setItem(`cart_${currentUserEmail}`, JSON.stringify(cart)); };
+    
+    const loadCartFromStorage = () => {
+        if (currentUserEmail) {
+            const savedCart = localStorage.getItem(`cart_${currentUserEmail}`);
+            if (savedCart) { try { const p = JSON.parse(savedCart); if (Array.isArray(p)) cart = p; } catch (e) { cart = []; } } else { cart = []; }
+        } else {
+            const tempCart = localStorage.getItem('savedCart');
+            if (tempCart) {
+                try { const p = JSON.parse(tempCart); if (Array.isArray(p)) cart.push(...p); } catch (e) { console.error("Error parsing temp cart", e); }
+                localStorage.removeItem('savedCart');
+            } else { cart = []; }
+        }
+    };
+
+    // ==========================================================
+    // === 5. LÓGICA DE MONEDA Y BANDERAS (NUEVO) ===
+    // ==========================================================
+    
     function getFlagEmoji(currency) {
         const map = { 
             'MXN': '🇲🇽', 'USD': '🇺🇸', 'CAD': '🇨🇦',
             'EUR': '🇪🇺', 'GBP': '🇬🇧', 'JPY': '🇯🇵',
-            'ARS': '🇦🇷', 'COP': '🇨🇴', 'BRL': '🇧🇷', 'CLP': '🇨🇱', 'PEN': '🇵🇪', 'UYU': '🇺🇾'
+            'ARS': '🇦🇷', 'COP': '🇨🇴', 'BRL': '🇧🇷', 'CLP': '🇨🇱', 'PEN': '🇵🇪', 'UYU': '🇺🇾',
+            'BOB': '🇧🇴', 'VES': '🇻🇪', 'CRC': '🇨🇷', 'GTQ': '🇬🇹'
         };
         return map[currency] || '🌐';
     }
 
-    // 3. Lógica para cambiar moneda (Banderas)
+    // Función para cambiar moneda (PERSISTENTE)
     async function changeUserCurrency(newCurrencyCode) {
         showAppToast(`Cambiando moneda a ${newCurrencyCode}...`, 'info');
         try {
+            // 1. Guardar en LocalStorage
+            localStorage.setItem('selected_currency', newCurrencyCode);
+
             const response = await fetch(`/api/location-currency?currency=${newCurrencyCode}`);
             const data = await response.json();
 
             userCurrency = data.currencyCode;
             conversionRate = data.conversionRate;
 
-            await loadAllProducts(); // Recargar productos con nuevos precios
-            renderCart(); // Recargar carrito
+            // 2. Recargar productos (regenera el HTML y reasigna eventos)
+            await loadAllProducts(); 
+            renderCart(); 
             
-            // Actualizar bandera en el menú
+            // 3. Actualizar bandera visualmente
             const flagEl = document.getElementById('current-currency-flag');
             if(flagEl) flagEl.textContent = getFlagEmoji(userCurrency);
 
-            // Reiniciar PayPal para la nueva moneda
+            // 4. Resetear PayPal para forzar recarga con nueva moneda
             isPayPalScriptLoaded = false; 
             currentPayPalCurrency = '';
             if(checkoutContainer) checkoutContainer.innerHTML = ''; 
@@ -121,39 +186,13 @@ function main() {
             showAppToast('Error al cambiar de moneda', 'error');
         }
     }
-    // Exponer al HTML global
+    
+    // Exponer la función globalmente para el HTML
     window.triggerCurrencyChange = (code) => changeUserCurrency(code);
 
-
     // ==========================================================
-    // === FUNCIONES ORIGINALES (Persistencia y UI) ===
+    // === 6. RENDERIZADO DEL MENÚ (CON BANDERAS) ===
     // ==========================================================
-
-    // PERSISTENCIA DEL CARRITO
-    const saveCartToStorage = () => { if (currentUserEmail) localStorage.setItem(`cart_${currentUserEmail}`, JSON.stringify(cart)); };
-    const loadCartFromStorage = () => {
-        if (currentUserEmail) {
-            const savedCart = localStorage.getItem(`cart_${currentUserEmail}`);
-            if (savedCart) { try { const p = JSON.parse(savedCart); if (Array.isArray(p)) cart = p; } catch (e) { cart = []; } } else { cart = []; }
-        } else {
-            const tempCart = localStorage.getItem('savedCart');
-            if (tempCart) {
-                try { const p = JSON.parse(tempCart); if (Array.isArray(p)) cart.push(...p); } catch (e) { console.error("Error al parsear carrito temporal:", e); }
-                localStorage.removeItem('savedCart');
-            } else { cart = []; }
-        }
-    };
-    
-    // FUNCIONES AUXILIARES DE UI
-    const formatMoney = (n) => n.toFixed(2);
-    const calculateTotal = () => cart.reduce((total, item) => total + (item.price * item.qty), 0);
-    
-    const updateCartBadge = () => {
-        const currentCartCountEl = document.getElementById('cart-count');
-        if (currentCartCountEl) { currentCartCountEl.textContent = cart.reduce((s, it) => s + it.qty, 0); }
-    };
-
-    // RENDERIZADO DEL MENÚ DE NAVEGACIÓN (ACTUALIZADO CON BANDERAS)
     function renderNavMenu(sessionData) {
         let staticLinks = `
             <li class="nav-item"><a class="nav-link" href="#inicio">Inicio</a></li>
@@ -169,19 +208,21 @@ function main() {
                 </a>
                 <ul class="dropdown-menu dropdown-menu-dark" style="min-width: auto; max-height: 300px; overflow-y: auto;">
                     <li><h6 class="dropdown-header text-warning">Norteamérica</h6></li>
-                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('MXN')">🇲🇽 MXN</button></li>
-                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('USD')">🇺🇸 USD</button></li>
-                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('CAD')">🇨🇦 CAD</button></li>
+                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('MXN')">🇲🇽 MXN (Peso Mexicano)</button></li>
+                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('USD')">🇺🇸 USD (Dólar EUA)</button></li>
+                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('CAD')">🇨🇦 CAD (Dólar Canadiense)</button></li>
                     <li><hr class="dropdown-divider"></li>
                     <li><h6 class="dropdown-header text-warning">Latinoamérica</h6></li>
-                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('ARS')">🇦🇷 ARS</button></li>
-                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('COP')">🇨🇴 COP</button></li>
-                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('CLP')">🇨🇱 CLP</button></li>
+                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('ARS')">🇦🇷 ARS (Peso Argentino)</button></li>
+                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('COP')">🇨🇴 COP (Peso Colombiano)</button></li>
+                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('BRL')">🇧🇷 BRL (Real Brasileño)</button></li>
+                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('CLP')">🇨🇱 CLP (Peso Chileno)</button></li>
+                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('PEN')">🇵🇪 PEN (Sol Peruano)</button></li>
                     <li><hr class="dropdown-divider"></li>
                     <li><h6 class="dropdown-header text-warning">Europa & Mundo</h6></li>
-                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('EUR')">🇪🇺 EUR</button></li>
-                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('GBP')">🇬🇧 GBP</button></li>
-                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('JPY')">🇯🇵 JPY</button></li>
+                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('EUR')">🇪🇺 EUR (Euro)</button></li>
+                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('GBP')">🇬🇧 GBP (Libra Esterlina)</button></li>
+                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('JPY')">🇯🇵 JPY (Yen Japonés)</button></li>
                 </ul>
             </li>
         `;
@@ -190,16 +231,17 @@ function main() {
             <li class="nav-item ms-lg-3 me-lg-2">
                 <form class="d-flex nav-search-form" id="productSearchForm" role="search">
                     <i class="bi bi-search"></i>
-                    <input class="form-control nav-search-input" type="search" id="navSearchInput" placeholder="Buscar producto..." aria-label="Buscar">
+                    <input class="form-control nav-search-input" type="search" id="navSearchInput" placeholder="Buscar..." aria-label="Buscar">
                 </form>
             </li>
         `;
+
         let dynamicLinks = '';
         if (sessionData.loggedIn) {
             currentUserEmail = sessionData.user.email;
             dynamicLinks = `
                 <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
                         <i class="bi bi-person-circle me-1"></i> ${sessionData.user.name}
                     </a>
                     <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="navbarDropdown">
@@ -217,6 +259,7 @@ function main() {
                 <li class="nav-item"><a class="nav-link" href="register.html">Registrarse</a></li>
             `;
         }
+        
         const cartLink = `
             <li class="nav-item">
                 <a class="nav-link position-relative" href="#" data-bs-toggle="modal" data-bs-target="#cartModal">
@@ -225,8 +268,9 @@ function main() {
                 </a>
             </li>
         `;
-        dynamicNavLinks.innerHTML = staticLinks + currencySelectorHtml + searchBarHtml + dynamicLinks + cartLink;
         
+        dynamicNavLinks.innerHTML = staticLinks + currencySelectorHtml + searchBarHtml + dynamicLinks + cartLink;
+
         if (sessionData.loggedIn) {
             const logoutBtn = document.getElementById('logoutBtnNav');
             if(logoutBtn) {
@@ -253,57 +297,50 @@ function main() {
     }
 
     // ==========================================================
-    // === CARGA DINÁMICA DE PAYPAL (ACTUALIZADA) ===
+    // === 7. CARGA DINÁMICA DE PAYPAL ===
     // ==========================================================
     function loadPayPalScript(currency, onReadyCallback) {
-        // Si ya está cargado con la MISMA moneda, no hacemos nada
         if (isPayPalScriptLoaded && currentPayPalCurrency === currency) {
             onReadyCallback();
             return;
         }
-
-        // Limpiar script anterior si existe
         const existingScript = document.querySelector('script[src*="paypal.com/sdk/js"]');
         if (existingScript) {
             existingScript.remove();
-            window.paypal = undefined; 
+            window.paypal = undefined;
         }
-
         if(checkoutContainer) checkoutContainer.innerHTML = '<div class="text-center p-3"><span class="spinner-border spinner-border-sm text-warning"></span> Cargando método de pago...</div>';
         if(paymentStatusEl) paymentStatusEl.innerHTML = '';
 
         const script = document.createElement('script');
         script.src = `https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=${currency}`;
         script.async = true;
-        
         script.onload = () => {
-            console.log(`PayPal SDK cargado para ${currency}`);
+            console.log(`✅ PayPal SDK cargado para ${currency}`);
             isPayPalScriptLoaded = true;
             currentPayPalCurrency = currency;
             onReadyCallback();
         };
-        
         script.onerror = () => {
-            console.error("No se pudo cargar el script de PayPal.");
-            if(checkoutContainer) checkoutContainer.innerHTML = '<p class="text-center text-danger">Error al cargar el módulo de pago.</p>';
+            console.error("Error cargando PayPal SDK");
+            if(checkoutContainer) checkoutContainer.innerHTML = '<p class="text-center text-danger">Error de conexión con PayPal. Recarga la página.</p>';
         };
-        
         document.body.appendChild(script);
     }
 
     // ==========================================================
-    // === RENDERIZADO DE PAYPAL (MODIFICADO) ===
+    // === 8. RENDERIZADO DE BOTONES DE PAGO ===
     // ==========================================================
     function renderCheckoutSection(sessionData) {
         if(!checkoutContainer) return;
         checkoutContainer.innerHTML = ''; 
         if(paymentStatusEl) paymentStatusEl.innerHTML = '';
         
-        const totalMXN = calculateTotal(); // Total base en MXN
-        const totalConverted = totalMXN * conversionRate; // Total en moneda del usuario
+        const totalMXN = calculateTotal();
+        const totalConverted = totalMXN * conversionRate;
 
         if (totalConverted <= 0) {
-            checkoutContainer.innerHTML = '<p class="text-muted text-center">Agrega productos para poder pagar.</p>';
+            checkoutContainer.innerHTML = '<p class="text-muted text-center">Tu carrito está vacío.</p>';
             return;
         }
 
@@ -329,36 +366,44 @@ function main() {
                             return Promise.reject(error);
                         }
                     },
-                    onApprove: (data, actions) => actions.order.capture().then(details => {
-                        if(paymentStatusEl) paymentStatusEl.innerHTML = `<div class="alert alert-success">¡Pago completado! Procesando...</div>`;
-                        
-                        const captureID = details.purchase_units[0].payments.captures[0].id;
-                        const productNames = cart.map(item => item.name).join(', ');
-                        const payerName = details.payer.name.given_name + ' ' + details.payer.name.surname;
-                        
-                        const purchaseData = {
-                            userEmail: sessionData.user.email,
-                            cardName: payerName,
-                            paypalTransactionId: captureID, 
-                            productName: productNames,
-                            price: totalMXN.toFixed(2) // Guardar en MXN
-                        };
-                        
-                        fetch('/process-purchase', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(purchaseData) })
+                    onApprove: (data) => {
+                        paymentStatusEl.innerHTML = `<div class="alert alert-info small">Procesando pago...</div>`;
+                        return fetch(`/api/orders/${data.orderID}/capture`, { 
+                            method: 'POST', headers: { 'Content-Type': 'application/json' }
+                        })
+                        .then(res => res.json())
+                        .then(captureData => {
+                            const productNames = cart.map(item => item.name).join(', ');
+                            const payerName = captureData.payer.name.given_name + ' ' + captureData.payer.name.surname;
+                            const purchaseData = {
+                                userEmail: sessionData.user.email,
+                                cardName: payerName,
+                                paypalTransactionId: captureData.id,
+                                productName: productNames,
+                                price: totalMXN.toFixed(2)
+                            };
+                            return fetch('/process-purchase', { 
+                                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(purchaseData) 
+                            });
+                        })
                         .then(res => res.json())
                         .then(serverData => {
                             if (serverData.success) {
-                                alert('¡Gracias por tu compra! Revisa tu correo para el comprobante.'); // Mantenemos alert aquí como pediste
-                                cart = []; 
+                                showAppToast('¡Compra exitosa! Revisa tu correo.', 'success');
+                                cart = [];
                                 renderCart();
-                                fetch('/my-purchases').then(res => res.json()).then(purchases => userPurchases = purchases);
+                                fetch('/my-purchases').then(res => res.json()).then(p => userPurchases = p);
                                 setTimeout(() => cartModal.hide(), 2000);
                             } else { throw new Error(serverData.message); }
+                        })
+                        .catch(err => {
+                            console.error(err);
+                            paymentStatusEl.innerHTML = `<div class="alert alert-danger small">Error al registrar compra. Contáctanos.</div>`;
                         });
-                    }),
-                    onError: (err) => { 
-                        console.error("PayPal Error:", err);
-                        if(paymentStatusEl) paymentStatusEl.innerHTML = `<div class="alert alert-danger">Ocurrió un error con el pago.</div>`; 
+                    },
+                    onError: (err) => {
+                        console.error("PayPal Window Error:", err);
+                        paymentStatusEl.innerHTML = `<div class="alert alert-warning small">El pago no se completó.</div>`;
                     }
                 }).render(checkoutContainer);
             }
@@ -371,7 +416,36 @@ function main() {
         }
     }
 
-    // EVENTOS DEL CARRITO
+    // ==========================================================
+    // === 9. FUNCIONES DEL CARRITO ===
+    // ==========================================================
+    
+    function renderCart() {
+        if (!cartItemsContainer || !cartTotalEl) return;
+        cartItemsContainer.innerHTML = cart.length === 0 ? '<p class="text-muted text-center">Tu carrito está vacío</p>' : '';
+        let subtotalMXN = 0;
+        cart.forEach((item, idx) => {
+            const itemTotalMXN = item.price * item.qty;
+            subtotalMXN += itemTotalMXN;
+            const displayPrice = itemTotalMXN * conversionRate; 
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'd-flex align-items-center justify-content-between cart-item mb-3';
+            itemDiv.innerHTML = `
+                <div><strong>${item.name}</strong><div class="small text-muted text-uppercase">${item.type}</div></div>
+                <div class="d-flex align-items-center gap-2">
+                    <span>$${formatMoney(displayPrice)} ${userCurrency}</span>
+                    <input type="number" min="1" value="${item.qty}" class="form-control form-control-sm bg-dark text-white quantity-input" style="width:60px" data-idx="${idx}">
+                    <button class="btn btn-sm btn-outline-danger remove-btn" data-idx="${idx}"><i class="bi bi-trash-fill"></i></button>
+                </div>`;
+            cartItemsContainer.appendChild(itemDiv);
+        });
+        const totalConverted = subtotalMXN * conversionRate;
+        cartTotalEl.textContent = `${formatMoney(totalConverted)} ${userCurrency}`;
+        updateCartBadge();
+        addCartEventListeners();
+        saveCartToStorage();
+    }
+    
     function addCartEventListeners() {
         document.querySelectorAll('.quantity-input').forEach(input => {
             input.addEventListener('change', (e) => {
@@ -387,196 +461,69 @@ function main() {
             });
         });
     }
-    
-    // RENDERIZADO DEL CARRITO (MODIFICADO con moneda)
-    function renderCart() {
-        if (!cartItemsContainer || !cartTotalEl) return;
-        cartItemsContainer.innerHTML = cart.length === 0 ? '<p class="text-muted">Tu carrito está vacío</p>' : '';
-        
-        let subtotalMXN = 0;
-        
-        cart.forEach((item, idx) => {
-            const itemTotalMXN = item.price * item.qty;
-            subtotalMXN += itemTotalMXN;
-            const displayPrice = itemTotalMXN * conversionRate; // Convertir para mostrar
 
-            const itemDiv = document.createElement('div');
-            itemDiv.className = 'd-flex align-items-center justify-content-between cart-item mb-3';
-            itemDiv.innerHTML = `
-                <div><strong>${item.name}</strong><div class="text-muted small text-uppercase">${item.type}</div></div>
-                <div class="d-flex align-items-center gap-3">
-                    <span>$${formatMoney(displayPrice)} ${userCurrency}</span>
-                    <input type="number" min="1" value="${item.qty}" class="form-control bg-dark text-white quantity-input" style="width:70px" data-idx="${idx}">
-                    <button class="btn btn-sm btn-outline-danger remove-btn" data-idx="${idx}"><i class="bi bi-trash-fill"></i></button>
-                </div>`;
-            cartItemsContainer.appendChild(itemDiv);
-        });
-        
-        const totalConverted = subtotalMXN * conversionRate;
-        cartTotalEl.textContent = `${formatMoney(totalConverted)} ${userCurrency}`;
-        
-        updateCartBadge();
-        addCartEventListeners();
-        saveCartToStorage();
-    }
-    
-    // --- LÓGICA DEL VISOR DE PDF Y RESEÑAS ---
+    // ==========================================================
+    // === 10. LOGICA DE PRODUCTOS Y EVENTOS ===
+    // ==========================================================
 
-    function renderStars(avgRating) {
-        let starsHtml = '';
-        const rating = Math.round(avgRating * 2) / 2;
-        for (let i = 1; i <= 5; i++) {
-            if (i <= rating) starsHtml += '<i class="bi bi-star-fill"></i>';
-            else if (i - 0.5 === rating) starsHtml += '<i class="bi bi-star-half"></i>';
-            else starsHtml += '<i class="bi bi-star"></i>';
-        }
-        return starsHtml;
-    }
+    // ESTA FUNCIÓN ES LA CLAVE: Se llama al cargar productos para reactivar botones
+    function bindProductCardEvents() {
+        // 1. Botones "Agregar al Carrito"
+        document.querySelectorAll('.add-to-cart').forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const name = button.dataset.name;
+                const type = button.dataset.type;
+                const price = parseFloat(button.dataset.price); 
 
-    const renderPage = num => {
-        pageIsRendering = true;
-        const existingWatermark = document.getElementById('watermark');
-        if (existingWatermark) existingWatermark.remove();
+                fetch('/check-session').then(res => res.json()).then(sessionData => {
+                    if (sessionData.loggedIn) {
+                        const already = userPurchases.some(p => (p.productName || '').includes(name) && p.status === 'COMPLETADO');
+                        if (already) return showAlreadyPurchasedModal(name);
 
-        if (num > previewPageLimit) {
-            const watermark = document.createElement('div');
-            watermark.id = 'watermark';
-            watermark.className = 'watermark-overlay';
-            watermark.innerHTML = `<div class="icon"><i class="bi bi-lock-fill"></i></div><div>PAGA PARA DESBLOQUEAR</div><button class="btn btn-accent mt-3">Comprar ahora</button>`;
-            pdfCanvasContainer.appendChild(watermark);
-            watermark.querySelector('button').onclick = () => {
-                pdfViewerModal.hide();
-                const btn = document.querySelector(`.add-to-cart[data-pdf-url$="${pdfDoc.url.split('/').pop()}"]`);
-                if(btn) btn.click();
-            };
-            pdfCanvas.getContext('2d').clearRect(0, 0, pdfCanvas.width, pdfCanvas.height);
-            pageNumEl.textContent = num;
-            pageIsRendering = false;
-            return;
-        }
-
-        pdfDoc.getPage(num).then(page => {
-            const viewport = page.getViewport({ scale: currentScale });
-            pdfCanvas.height = viewport.height;
-            pdfCanvas.width = viewport.width;
-            page.render({ canvasContext: pdfCanvas.getContext('2d'), viewport }).promise.then(() => {
-                pageIsRendering = false;
-                if (pageNumIsPending !== null) { renderPage(pageNumIsPending); pageNumIsPending = null; }
+                        const item = cart.find(i => i.name === name);
+                        if (item) item.qty++; else cart.push({ name, type, price, qty: 1 });
+                        
+                        renderCart();
+                        showItemAddedToast(name);
+                        cartModal.show();
+                    } else {
+                        showAppToast('Inicia sesión para comprar.', 'info');
+                        localStorage.setItem('savedCart', JSON.stringify([{ name, type, price, qty: 1 }]));
+                        setTimeout(() => window.location.href = 'login.html', 1500);
+                    }
+                });
             });
         });
-        pageNumEl.textContent = num;
-    };
-    const queueRenderPage = num => { if (pageIsRendering) { pageNumIsPending = num; } else { renderPage(num); } };
 
-    function showAlreadyPurchasedModal(productName) {
-        purchasedProductNameEl.textContent = productName;
-        purchasedModal.show();
-    }
+        // 2. Botones "Ver PDF" (Vista Previa)
+        document.querySelectorAll('.view-pdf-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const url = btn.dataset.pdfUrl;
+                if (!url || url === 'null') return;
+                previewPageLimit = parseInt(btn.dataset.previewPages, 10);
+                pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js`;
+                pdfjsLib.getDocument(url).promise.then(doc => {
+                    pdfDoc = doc; pageCountEl.textContent = doc.numPages; pageNum = 1; currentScale = 1.0;
+                    renderPage(pageNum); pdfViewerModal.show();
+                }).catch(() => showAppToast('Error al cargar PDF', 'error'));
+            });
+        });
 
-    async function fetchAndRenderReviews(productId) {
-        const reviewContainer = document.getElementById('review-list-container');
-        reviewContainer.innerHTML = '<p class="text-muted">Cargando reseñas...</p>';
-        const response = await fetch(`/api/products/${productId}/reviews`);
-        const reviews = await response.json();
-        if (reviews.length === 0) {
-            reviewContainer.innerHTML = '<p class="text-muted">Este producto aún no tiene reseñas. ¡Sé el primero!</p>';
-            return;
-        }
-        reviewContainer.innerHTML = '';
-        reviews.forEach(review => {
-            const reviewHtml = `
-                <div class="mb-3 p-3" style="background-color: var(--bg); border-radius: 8px;">
-                    <div class="d-flex justify-content-between">
-                        <strong>${review.user_name}</strong>
-                        <span class="star-rating">${renderStars(review.rating)}</span>
-                    </div>
-                    <p class="text-muted small">${new Date(review.created_at).toLocaleDateString('es-MX')}</p>
-                    <p>${review.comment}</p>
-                    ${review.image_url ? `<img src="${review.image_url}" class="img-fluid rounded mb-2" alt="Reseña">` : ''}
-                    ${review.video_url ? `<video controls class="w-100 rounded mb-2"><source src="${review.video_url}"></video>` : ''}
-                </div>
-            `;
-            reviewContainer.innerHTML += reviewHtml;
+        // 3. Botones "Reseñas"
+        document.querySelectorAll('.view-product-details').forEach(el => {
+            el.addEventListener('click', (e) => {
+                if (e.target.closest('button.add-to-cart')) return;
+                openProductModal(e.currentTarget.dataset.productId);
+            });
         });
     }
 
-    async function handleReviewSubmit(e, productId) {
-        e.preventDefault();
-        const form = e.target;
-        const formData = new FormData(form);
-        const submitButton = form.querySelector('button[type="submit"]');
-        submitButton.disabled = true;
-        submitButton.textContent = 'Publicando...';
-        try {
-            const response = await fetch(`/api/products/${productId}/reviews`, { method: 'POST', body: formData });
-            const data = await response.json();
-            if (data.success) {
-                alert('¡Gracias por tu reseña!');
-                form.reset();
-                await fetchAndRenderReviews(productId);
-            } else {
-                alert('Error: ' + data.message);
-            }
-        } catch (err) {
-            alert('Error de conexión al publicar la reseña.');
-        } finally {
-            submitButton.disabled = false;
-            submitButton.textContent = 'Publicar Reseña';
-        }
-    }
-
-    async function openProductModal(productId) {
-        const product = allProducts.find(p => p.id == productId);
-        if (!product) return;
-
-        document.getElementById('product-detail-title').textContent = product.name;
-        document.getElementById('product-detail-img').src = product.image_url;
-        document.getElementById('product-detail-name').textContent = product.name;
-        document.getElementById('product-detail-desc').textContent = product.description;
-
-        const price = parseFloat(product.price) || 0;
-        // PRECIO DINAMICO
-        const displayPrice = price * conversionRate;
-        document.getElementById('product-detail-price').textContent = `$${formatMoney(displayPrice)} ${userCurrency}`;
-
-        document.getElementById('product-detail-stars-avg').innerHTML = renderStars(product.avg_rating);
-        document.getElementById('product-detail-review-count').textContent = 
-            `(${product.review_count} ${product.review_count === 1 ? 'reseña' : 'reseñas'})`;
-
-        const addBtn = document.getElementById('product-detail-add-btn');
-        addBtn.dataset.name = product.name;
-        addBtn.dataset.type = product.category;
-        addBtn.dataset.price = price;
-        addBtn.dataset.productId = product.id;
-
-        await fetchAndRenderReviews(productId);
-
-        const reviewForm = document.getElementById('reviewForm');
-        if (currentUserEmail) {
-            const hasPurchased = Array.isArray(userPurchases) && userPurchases.some(purchase => {
-                const prodName = purchase.productName || purchase.product_name || '';
-                return prodName.includes(product.name) && purchase.status === 'COMPLETADO';
-            });
-
-            if (hasPurchased) {
-                reviewForm.style.display = 'block';
-                reviewForm.onsubmit = (e) => handleReviewSubmit(e, productId);
-            } else {
-                reviewForm.style.display = 'none';
-            }
-        } else {
-            reviewForm.style.display = 'none';
-        }
-        productDetailModal.show();
-    }
-    
-    // ==========================================================
-    // === LÓGICA PARA CARGAR PRODUCTOS (CORREGIDA) ===
-    // ==========================================================
     async function loadAllProducts() {
         try {
             const response = await fetch('/api/products');
-            products = await response.json();
+            const products = await response.json();
             allProducts = products;
 
             const planesContainer = document.getElementById('planes-container');
@@ -590,276 +537,198 @@ function main() {
             productosContainer.innerHTML = '';
 
             products.forEach(p => {
-                let productHtml = '';
                 const avgRating = p.avg_rating || 0;
                 const reviewCount = p.review_count || 0;
                 const starsHtml = avgRating > 0 ? renderStars(avgRating) : '<span class="text-muted small">Sin reseñas</span>';
                 
+                const price = parseFloat(p.price) || 0;
                 // PRECIO DINAMICO
-                const displayPrice = p.price * conversionRate;
+                const displayPrice = price * conversionRate; 
 
                 const isPdfProduct = p.pdf_url && p.pdf_url !== 'null';
                 const imgClasses = isPdfProduct ? "card-img-top-custom view-pdf-btn" : "card-img-top-custom";
                 const imgCursor = isPdfProduct ? "cursor: pointer;" : "";
-                const imgData = isPdfProduct ? `data-pdf-url="${p.pdf_url}" data-preview-pages="${p.preview_pages}"` : "";
-
-                const titleClasses = "fw-bold view-product-details";
-                const titleCursor = "cursor: pointer;";
-                const titleData = `data-product-id="${p.id}"`;
+                const imgData = isPdfProduct ? `data-pdf-url="${p.pdf_url}" data-preview-pages="${p.preview_pages || 0}"` : "";
                 
-                const reviewButton = `
-                    <button class="btn btn-outline-light btn-sm view-product-details" data-product-id="${p.id}">
-                        <i class="bi bi-star-fill"></i> Reseñas
-                    </button>
+                const reviewButton = `<button class="btn btn-outline-light btn-sm view-product-details" data-product-id="${p.id}"><i class="bi bi-star-fill"></i> Reseñas</button>`;
+                
+                const cardContent = `
+                    <div class="card-pro d-flex flex-column">
+                        <img class="${imgClasses}" src="${p.image_url}" alt="${p.name}" ${imgData} style="${imgCursor}">
+                        <div class="p-4 d-flex flex-column flex-grow-1">
+                            <h4 class="mb-1 fw-bold view-product-details" style="cursor:pointer" data-product-id="${p.id}">${p.name}</h4>
+                            <div class="star-rating mb-2 view-product-details" style="cursor:pointer" data-product-id="${p.id}">${starsHtml} <span class="text-muted small">(${reviewCount})</span></div>
+                            <p class="text-muted">${p.description}</p>
+                            <div class="d-flex justify-content-between align-items-center mt-auto pt-3">
+                                <div class="price">$${formatMoney(displayPrice)} ${userCurrency}</div>
+                                <div class="d-flex gap-2">
+                                    ${p.category === 'producto' ? reviewButton : ''}
+                                    <button class="btn btn-accent add-to-cart" data-type="${p.category}" data-name="${p.name}" data-price="${price}" data-product-id="${p.id}"><i class="bi bi-cart-plus-fill"></i> Agregar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 `;
 
-                if (p.category === 'plan' || p.category === 'libro') {
-                    productHtml = `
-                    <div class="col-lg-6" data-aos="fade-up">
-                        <div class="card-pro d-flex flex-column">
-                            <img class="${imgClasses}" src="${p.image_url}" alt="${p.name}" ${imgData} style="${imgCursor}">
-                            <div class="p-4 d-flex flex-column flex-grow-1">
-                                <h4 class="mb-1 ${titleClasses}" ${titleData} style="${titleCursor}">${p.name}</h4>
-                                <div class="star-rating mb-2 ${titleClasses}" ${titleData} style="${titleCursor}">
-                                    ${starsHtml} <span class="text-muted small">(${reviewCount})</span>
-                                </div>
-                                <p class="text-muted">${p.description}</p>
-                                <div class="d-flex justify-content-between align-items-center mt-auto pt-3">
-                                    <div class="price">$${formatMoney(displayPrice)} ${userCurrency}</div>
-                                    <button class="btn btn-accent add-to-cart" data-type="${p.category}" data-name="${p.name}" data-price="${p.price}" data-product-id="${p.id}">
-                                        <i class="bi bi-cart-plus-fill"></i> Agregar
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>`;
-                    if (p.category === 'plan') planesContainer.innerHTML += productHtml;
-                    else librosContainer.innerHTML += productHtml;
-                } else {
-                    productHtml = `
-                    <div class="col-md-4" data-aos="zoom-in">
-                        <div class="card-pro d-flex flex-column">
-                            <img src="${p.image_url}" class="card-img-top-custom" alt="${p.name}">
-                            <div class="p-4 d-flex flex-column flex-grow-1">
-                                <h5 class="${titleClasses}" ${titleData} style="${titleCursor}">${p.name}</h5>
-                                <div class="star-rating mb-2 ${titleClasses}" ${titleData} style="${titleCursor}">
-                                    ${starsHtml} <span class="text-muted small">(${reviewCount})</span>
-                                </div>
-                                <p class="text-muted mb-3">${p.description}</p>
-                                <div class="d-flex justify-content-between align-items-center mt-auto">
-                                    <div class="price">$${formatMoney(displayPrice)} ${userCurrency}</div>
-                                    <div class="d-flex gap-2">
-                                        ${reviewButton}
-                                        <button class="btn btn-accent add-to-cart" data-type="Producto" data-name="${p.name}" data-price="${p.price}" data-product-id="${p.id}">Agregar</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>`;
-                    productosContainer.innerHTML += productHtml;
-                }
+                const colClass = (p.category === 'plan' || p.category === 'libro') ? 'col-lg-6' : 'col-md-4';
+                const itemHtml = `<div class="${colClass}" data-aos="fade-up">${cardContent}</div>`;
+
+                if (p.category === 'plan') planesContainer.innerHTML += itemHtml;
+                else if (p.category === 'libro') librosContainer.innerHTML += itemHtml;
+                else productosContainer.innerHTML += itemHtml;
             });
+
+            // ¡IMPORTANTE! Volver a asignar eventos a los nuevos botones
+            bindProductCardEvents();
+            
             return true;
         } catch (error) {
             console.error("Error al cargar productos:", error);
             return false;
         }
     }
-    
+
     function performSearch(searchTerm) {
         const products = document.querySelectorAll('.card-pro');
         let productFound = false;
         products.forEach(product => {
             const cardColumn = product.closest('.col-lg-6, .col-md-4');
-            const productName = product.querySelector('h4, h5').textContent.toLowerCase();
-            const productDesc = product.querySelector('p').textContent.toLowerCase();
-            if (productName.includes(searchTerm) || productDesc.includes(searchTerm)) {
-                cardColumn.style.display = 'block';
-                productFound = true;
-            } else {
-                cardColumn.style.display = 'none';
-            }
+            const text = product.innerText.toLowerCase();
+            if (text.includes(searchTerm)) { cardColumn.style.display = 'block'; productFound = true; } else { cardColumn.style.display = 'none'; }
         });
-        if (searchTerm === "") {
-            products.forEach(product => {
-                product.closest('.col-lg-6, .col-md-4').style.display = 'block';
-            });
-        }
-        if (searchTerm.length > 0 && productFound) {
-            document.getElementById('planes').scrollIntoView({ behavior: 'smooth' });
-        }
+        if (searchTerm === "") products.forEach(p => p.closest('.col-lg-6, .col-md-4').style.display = 'block');
+        if (searchTerm.length > 0 && productFound) document.getElementById('planes').scrollIntoView({ behavior: 'smooth' });
     }
-    
-    // --- 3. ASIGNACIÓN DE TODOS LOS EVENTOS DE LA PÁGINA ---
-    function initializeEventListeners() {
-        // Evento para agregar productos
-        document.querySelectorAll('.add-to-cart, .add-to-cart-from-modal').forEach(button => {
-            button.addEventListener('click', (e) => {
-                e.stopPropagation(); 
-                const name = button.dataset.name;
-                const type = button.dataset.type;
-                const price = parseFloat(button.dataset.price); // Precio en MXN
 
-                fetch('/check-session')
-                    .then(res => res.json())
-                    .then(sessionData => {
-                        if (sessionData.loggedIn) {
-                            const alreadyPurchased = userPurchases.some(purchase => {
-                                const productName = purchase.productName || purchase.product_name || '';
-                                return productName.includes(name) && purchase.status === 'COMPLETADO';
-                            });
+    // ==========================================================
+    // === 11. FUNCIONES DE VISOR Y RESEÑAS ===
+    // ==========================================================
 
-                            if (alreadyPurchased) {
-                                showAlreadyPurchasedModal(name);
-                                return;
-                            }
-
-                            const existingItem = cart.find(item => item.name === name);
-                            if (existingItem) {
-                                existingItem.qty++;
-                            } else {
-                                cart.push({ name, type, price, qty: 1 });
-                            }
-
-                            renderCart();
-                            // Usar Toast para notificar
-                            document.getElementById('toast-item-name').textContent = name;
-                            toast.show();
-                            cartModal.show();
-                        } else {
-                            alert('Debes iniciar sesión para agregar productos.');
-                            localStorage.setItem('savedCart', JSON.stringify([{ name, type, price, qty: 1 }]));
-                            window.location.href = 'login.html';
-                        }
-                    })
-                    .catch(err => console.error('Error verificando sesión o agregando producto:', err));
-            });
-        });
-
-        // Evento para ver PDFs de MUESTRA
-        document.querySelectorAll('.view-pdf-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const url = btn.dataset.pdfUrl;
-                if (!url || url === 'null') return;
-                
-                previewPageLimit = parseInt(btn.dataset.previewPages, 10);
-                pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js`;
-                pdfjsLib.getDocument(url).promise.then(pdfDoc_ => {
-                    pdfDoc = pdfDoc_;
-                    pageCountEl.textContent = pdfDoc.numPages;
-                    pageNum = 1;
-                    currentScale = 1.0;
-                    renderPage(pageNum);
-                    pdfViewerModal.show();
-                }).catch(err => alert('No se pudo cargar la vista previa.'));
-            });
-        });
-
-        // Evento para ver DETALLES DEL PRODUCTO (reseñas)
-        document.querySelectorAll('.view-product-details').forEach(element => {
-            element.addEventListener('click', (e) => {
-                if (e.target.closest('button')) return; 
-                const productId = e.currentTarget.dataset.productId;
-                openProductModal(productId);
-            });
-        });
-        
-        // Eventos de botones del visor de PDF
+    function initializeStaticEventListeners() {
+        // Controles PDF (estáticos, no se borran)
         prevPageBtn.addEventListener('click', () => { if (pageNum > 1) { pageNum--; queueRenderPage(pageNum); } });
         nextPageBtn.addEventListener('click', () => { if (pageNum < pdfDoc.numPages) { pageNum++; queueRenderPage(pageNum); } });
         zoomInBtn.addEventListener('click', () => { if (currentScale < 3.0) { currentScale += 0.25; renderPage(pageNum); } });
         zoomOutBtn.addEventListener('click', () => { if (currentScale > 0.5) { currentScale -= 0.25; renderPage(pageNum); } });
         
-        // Asignar eventos al carrito
+        // Eventos iniciales
         addCartEventListeners();
+    }
 
-        // Eventos del Buscador
-        const searchForm = document.getElementById('productSearchForm');
-        const searchInput = document.getElementById('navSearchInput');
-        if(searchForm) {
-            searchForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                const searchTerm = searchInput.value.toLowerCase().trim();
-                performSearch(searchTerm);
-            });
-            searchInput.addEventListener('keyup', (e) => {
-                 const searchTerm = e.target.value.toLowerCase().trim();
-                 performSearch(searchTerm);
-            });
-        }
+    function renderStars(avg) {
+        let s = ''; const r = Math.round(avg * 2) / 2;
+        for(let i=1; i<=5; i++) s += (i<=r ? '<i class="bi bi-star-fill"></i>' : (i-0.5===r ? '<i class="bi bi-star-half"></i>' : '<i class="bi bi-star"></i>'));
+        return s;
     }
     
+    const queueRenderPage = num => { if (pageIsRendering) pageNumIsPending = num; else renderPage(num); };
+    const renderPage = num => {
+        pageIsRendering = true;
+        const wm = document.getElementById('watermark'); if(wm) wm.remove();
+        if(num > previewPageLimit) {
+            const div = document.createElement('div'); div.id='watermark'; div.className='watermark-overlay';
+            div.innerHTML = `<div class="icon"><i class="bi bi-lock-fill"></i></div><div>PAGA PARA DESBLOQUEAR</div><button class="btn btn-accent mt-3">Comprar</button>`;
+            pdfCanvasContainer.appendChild(div);
+            div.querySelector('button').onclick = () => { pdfViewerModal.hide(); const b = document.querySelector(`.add-to-cart[data-pdf-url$="${pdfDoc.url.split('/').pop()}"]`); if(b) b.click(); };
+            pdfCanvas.getContext('2d').clearRect(0,0,pdfCanvas.width, pdfCanvas.height); pageNumEl.textContent = num; pageIsRendering=false; return;
+        }
+        pdfDoc.getPage(num).then(p => {
+            const v = p.getViewport({scale: currentScale}); pdfCanvas.height = v.height; pdfCanvas.width = v.width;
+            p.render({canvasContext: pdfCanvas.getContext('2d'), viewport:v}).promise.then(()=>{ pageIsRendering=false; if(pageNumIsPending!==null){ renderPage(pageNumIsPending); pageNumIsPending=null; } });
+        });
+        pageNumEl.textContent = num;
+    };
+
+    function showAlreadyPurchasedModal(name) { purchasedProductNameEl.textContent = name; purchasedModal.show(); }
+    
+    async function fetchAndRenderReviews(id) {
+        const c = document.getElementById('review-list-container'); c.innerHTML = 'Cargando...';
+        try { const r = await(await fetch(`/api/products/${id}/reviews`)).json(); 
+        c.innerHTML = r.length ? r.map(v => `<div class="mb-3 p-3 bg-dark rounded"><strong>${v.user_name}</strong> ${renderStars(v.rating)}<p class="small text-muted">${new Date(v.created_at).toLocaleDateString()}</p><p>${v.comment}</p></div>`).join('') : 'Sin reseñas.';
+        } catch(e) { c.innerHTML = 'Error cargando reseñas.'; }
+    }
+    
+    async function handleReviewSubmit(e, id) {
+        e.preventDefault(); const btn = e.target.querySelector('button'); btn.disabled=true;
+        try { const res = await fetch(`/api/products/${id}/reviews`, {method:'POST', body: new FormData(e.target)});
+        const d = await res.json(); if(d.success) { showAppToast('Reseña enviada', 'success'); e.target.reset(); fetchAndRenderReviews(id); } else showAppToast(d.message, 'error');
+        } catch(err) { showAppToast('Error de conexión', 'error'); } finally { btn.disabled=false; }
+    }
+    
+    async function openProductModal(id) {
+        const p = allProducts.find(x => x.id == id); if(!p) return;
+        document.getElementById('product-detail-title').textContent = p.name;
+        document.getElementById('product-detail-img').src = p.image_url;
+        document.getElementById('product-detail-name').textContent = p.name;
+        document.getElementById('product-detail-desc').textContent = p.description;
+        document.getElementById('product-detail-price').textContent = `$${formatMoney(parseFloat(p.price)*conversionRate)} ${userCurrency}`;
+        document.getElementById('product-detail-stars-avg').innerHTML = renderStars(p.avg_rating);
+        const btn = document.getElementById('product-detail-add-btn');
+        btn.dataset.name = p.name; btn.dataset.type = p.category; btn.dataset.price = parseFloat(p.price);
+        fetchAndRenderReviews(id);
+        const form = document.getElementById('reviewForm');
+        if(currentUserEmail && userPurchases.some(x => (x.productName||'').includes(p.name) && x.status==='COMPLETADO')) {
+            form.style.display='block'; form.onsubmit=(e)=>handleReviewSubmit(e, id);
+        } else form.style.display='none';
+        productDetailModal.show();
+    }
+
     // ==========================================================
-    // === 4. INICIALIZACIÓN DE LA PÁGINA ===
+    // === 12. INICIO DE LA APP (PERSISTENCIA) ===
     // ==========================================================
     initializeDOMElements();
-    
+
     async function startPage() {
         try {
-            const [sessionResponse, locationResponse] = await Promise.all([
-                fetch('/check-session'),
-                fetch('/api/location-currency')
-            ]);
+            // 1. Recuperar preferencia guardada
+            const storedCurrency = localStorage.getItem('selected_currency');
             
-            const sessionData = await sessionResponse.json();
-            const locationData = await locationResponse.json();
+            // 2. Construir URL de fetch
+            let currencyUrl = '/api/location-currency';
+            if (storedCurrency) {
+                currencyUrl += `?currency=${storedCurrency}`; 
+            }
 
-            // Detectar moneda inicial (por IP o defecto)
-            userCurrency = locationData.currencyCode || 'MXN';
-            conversionRate = locationData.conversionRate || 1;
-            
-            // Renderizar menú con la bandera correcta
+            const [sessionRes, locRes] = await Promise.all([
+                fetch('/check-session'),
+                fetch(currencyUrl)
+            ]);
+            const sessionData = await sessionRes.json();
+            const locData = await locRes.json();
+
+            // 3. Establecer moneda inicial
+            userCurrency = locData.currencyCode || 'MXN';
+            conversionRate = locData.conversionRate || 1;
+
             renderNavMenu(sessionData);
-            
             loadCartFromStorage();
             
-            if (sessionData.loggedIn) {
-                try {
-                    const purchasesRes = await fetch('/my-purchases');
-                    userPurchases = await purchasesRes.json();
-                } catch (e) { userPurchases = []; }
-            }
-            
-            // Cargar carrito temporal
-            const tempCart = localStorage.getItem('savedCart');
-            if(tempCart) {
-                try {
-                    const parsedCart = JSON.parse(tempCart);
-                    if(Array.isArray(parsedCart) && parsedCart.length > 0) {
-                        parsedCart.forEach(tempItem => {
-                            const existingItem = cart.find(item => item.name === tempItem.name);
-                            if (existingItem) { existingItem.qty += tempItem.qty; }
-                            else { cart.push(tempItem); }
-                        });
-                        cartModal.show();
-                    }
-                } catch(e) { console.error("Error parsing temp cart", e); }
-                localStorage.removeItem('savedCart');
-            }
-            
-            // Cargar productos con precios actualizados
-            await loadAllProducts();
+            // Carga inicial de productos + asignación de eventos
+            await loadAllProducts(); 
             renderCart();
-            initializeEventListeners();
+            initializeStaticEventListeners();
+            
+            if (sessionData.loggedIn) {
+                try { userPurchases = await (await fetch('/my-purchases')).json(); } catch(e){}
+            }
 
-        } catch (error) {
-            console.error("Error al inicializar la página:", error);
-            document.body.innerHTML = '<h2 style="color:white; text-align:center; margin-top:50px;">Error al cargar el sitio. Intenta de nuevo más tarde.</h2>';
+            // EVENTO CARRITO
+            if(cartModalEl) {
+                cartModalEl.addEventListener('shown.bs.modal', () => {
+                    fetch('/check-session')
+                        .then(r => r.json())
+                        .then(sData => {
+                            loadPayPalScript(userCurrency, () => {
+                                renderCheckoutSection(sData);
+                            });
+                        });
+                });
+            }
+
+        } catch (e) {
+            console.error("Error inicio:", e);
         }
     }
-    
-    // Iniciar la página
-    startPage();
 
-    // CARGA DINÁMICA DE PAYPAL: Solo al abrir el carrito
-    cartModalEl.addEventListener('shown.bs.modal', () => {
-        fetch('/check-session')
-            .then(res => res.json())
-            .then(sessionData => {
-                loadPayPalScript(userCurrency, () => {
-                    renderCheckoutSection(sessionData);
-                });
-            });
-    });
+    startPage();
 }
