@@ -1327,54 +1327,68 @@ app.post('/request-return', async (req, res) => {
 
 
 
-// --- Endpoint de Facturación (Soporte Multimoneda) ---
+// --- Endpoint de Facturación (Soporte Multimoneda y Conversión) ---
 app.post('/enviar-factura', async (req, res) => {
     try {
-        const data = req.body; // Datos que vienen del formulario (rfc, nombre, items, etc.)
+        const data = req.body; // Recibe: rfc, totalCompra, currency, etc.
 
-        // 1. Lógica de Moneda
-        // Si el frontend manda 'currency', lo usamos. Si no, MXN.
+        // 1. Lógica de Moneda y Tasa
         const requestedCurrency = data.currency || 'MXN';
         let exchangeRate = 1;
 
-        // Si la moneda NO es MXN, buscamos la tasa en tu variable global 'exchangeRates'
+        // Obtener la tasa de conversión del día (si no es MXN)
         if (requestedCurrency !== 'MXN' && exchangeRates[requestedCurrency]) {
             exchangeRate = exchangeRates[requestedCurrency];
         }
 
-        // 2. Preparar datos para los generadores (PDF/XML)
-        // Añadimos campos estándar del SAT para moneda extranjera
+        // 2. Preparar datos para PDF/XML
         const invoiceData = {
             ...data,
             Moneda: requestedCurrency,
-            TipoCambio: exchangeRate.toFixed(4), // SAT pide 4 decimales o más
-            // Nota: Asumimos que 'data.items' y 'data.total' ya vienen con los montos correctos
+            TipoCambio: exchangeRate.toFixed(4),
+            // Aseguramos compatibilidad de nombres
+            total: data.totalCompra 
         };
 
         // 3. Generar documentos
         const xmlContent = generateXML(invoiceData);
         const pdfBuffer = await generateInvoicePdfBuffer(invoiceData);
 
-        // 4. Crear apartado de conversión para el CORREO
+        // 4. Crear apartado de conversión para el CORREO (CORREGIDO)
         let conversionHtml = '';
+        
         if (requestedCurrency !== 'MXN') {
+            // Calculamos el monto original en pesos para mostrarlo
+            // Fórmula: TotalDivisa / Tasa = TotalPesos
+            const montoEnPesos = (data.totalCompra / exchangeRate).toFixed(2);
+
             conversionHtml = `
                 <div style="background-color: #2d2d30; padding: 15px; margin-top: 20px; border-radius: 6px; border: 1px solid #444;">
-                    <h3 style="color: #f7a610; margin-top: 0; font-size: 16px;">Detalles de Divisa</h3>
+                    <h3 style="color: #f7a610; margin-top: 0; margin-bottom: 10px; font-size: 16px; border-bottom: 1px solid #555; padding-bottom: 5px;">
+                        Detalles de Conversión
+                    </h3>
                     <table width="100%" style="color: #ddd; font-size: 14px;">
                         <tr>
-                            <td style="padding: 5px 0;">Moneda de Emisión:</td>
-                            <td style="text-align: right; font-weight: bold;">${requestedCurrency}</td>
+                            <td style="padding: 5px 0; color: #aaa;">Precio Base (MXN):</td>
+                            <td style="text-align: right;">$${montoEnPesos} MXN</td>
                         </tr>
                         <tr>
-                            <td style="padding: 5px 0;">Tipo de Cambio:</td>
-                            <td style="text-align: right; font-weight: bold;">$${exchangeRate.toFixed(4)} MXN</td>
+                            <td style="padding: 5px 0; color: #aaa;">Tipo de Cambio Aplicado:</td>
+                            <td style="text-align: right;">${exchangeRate.toFixed(4)}</td>
                         </tr>
                         <tr>
-                            <td style="border-top: 1px solid #555; padding-top: 5px; margin-top: 5px;"><strong>Total Pagado:</strong></td>
-                            <td style="border-top: 1px solid #555; padding-top: 5px; margin-top: 5px; text-align: right; color: #f7a610;"><strong>$${data.total} ${requestedCurrency}</strong></td>
+                            <td style="border-top: 1px solid #555; padding-top: 8px; margin-top: 5px; font-weight: bold; color: #fff;">
+                                Total Pagado:
+                            </td>
+                            <td style="border-top: 1px solid #555; padding-top: 8px; margin-top: 5px; text-align: right; color: #f7a610; font-size: 18px; font-weight: bold;">
+                                <!-- Aquí estaba el error 'undefined', corregido a data.totalCompra -->
+                                $${parseFloat(data.totalCompra).toFixed(2)} ${requestedCurrency}
+                            </td>
                         </tr>
                     </table>
+                    <p style="font-size: 10px; color: #777; margin-top: 10px; text-align: center;">
+                        * La conversión se realiza según la tasa de cambio del día de la compra.
+                    </p>
                 </div>
             `;
         }
@@ -1384,8 +1398,12 @@ app.post('/enviar-factura', async (req, res) => {
             <p>Estimado cliente,</p>
             <p>Adjuntamos su factura electrónica correspondiente a la compra con folio <b>${data.folio || 'N/A'}</b>.</p>
             <p>RFC Receptor: <b>${data.rfc}</b></p>
+            
             ${conversionHtml} 
-            <p style="font-size: 12px; color: #888; margin-top: 20px;">Este correo contiene archivos adjuntos (PDF y XML) válidos para efectos fiscales.</p>
+            
+            <p style="font-size: 12px; color: #888; margin-top: 20px; text-align: center;">
+                Este correo contiene archivos adjuntos (PDF y XML) válidos para efectos fiscales.
+            </p>
         `;
         
         const msg = {
@@ -1394,7 +1412,7 @@ app.post('/enviar-factura', async (req, res) => {
                 email: VERIFIED_SENDER, 
                 name: "Tu Portal de Facturación" 
             },
-            subject: `Factura Electrónica - ${data.rfc} (${requestedCurrency})`,
+            subject: `Factura Electrónica - ${data.rfc}`,
             html: createStyledEmail('Factura Emitida', emailContent),
             attachments: [
                 { 
@@ -1406,17 +1424,17 @@ app.post('/enviar-factura', async (req, res) => {
                 { 
                     content: Buffer.from(xmlContent).toString('base64'), 
                     filename: `Factura-${data.rfc}.xml`, 
-                    type: 'application/xml', // o 'text/xml'
+                    type: 'application/xml', 
                     disposition: 'attachment' 
                 }
             ]
         };
 
         // 6. Enviar
-        console.log(`📨 Enviando factura en ${requestedCurrency} a ${data.emailReceptor}...`);
+        console.log(`📨 Enviando factura a ${data.emailReceptor}...`);
         await sgMail.send(msg);
         
-        res.json({ success: true, message: "Factura enviada y generada en " + requestedCurrency });
+        res.json({ success: true, message: "Factura enviada correctamente." });
 
     } catch (error) {
         console.error("❌ Error al generar o enviar la factura:", error);

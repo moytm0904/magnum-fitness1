@@ -2,7 +2,7 @@
 
 function generateXML(data) {
     // ==========================================================
-    // === DATOS DE MONEDA Y TIPO DE CAMBIO (NUEVO) ===
+    // === DATOS DE MONEDA Y TIPO DE CAMBIO ===
     // ==========================================================
     // Leemos la moneda enviada desde el endpoint (o usamos MXN por defecto)
     const currency = data.Moneda || 'MXN';
@@ -19,6 +19,7 @@ function generateXML(data) {
     const totalConIva = parseFloat(data.totalCompra || data.total || 0);
     
     // Cálculos básicos (asumiendo IVA 16% incluido)
+    // Nota: Para producción real, estos cálculos deben ser muy precisos con decimales.
     const subtotal = (totalConIva / 1.16).toFixed(2);
     const iva = (totalConIva - parseFloat(subtotal)).toFixed(2);
 
@@ -27,6 +28,7 @@ function generateXML(data) {
     // ==========================================================
     // === GENERACIÓN DE LA CADENA XML ===
     // ==========================================================
+    // Se inyecta ${tipoCambioAttr} dentro de la etiqueta <cfdi:Comprobante>
     const xmlString = `<?xml version="1.0" encoding="UTF-8"?>
 <cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sat.gob.mx/cfd/4 http://www.sat.gob.mx/sitio_internet/cfd/4/cfdv40.xsd"
     Version="4.0" Serie="MAG" Folio="001" Fecha="${new Date().toISOString()}"
