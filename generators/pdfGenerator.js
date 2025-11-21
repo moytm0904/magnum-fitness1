@@ -1,4 +1,3 @@
-// generators/pdfGenerator.js
 const PDFDocument = require('pdfkit');
 
 function generateInvoicePdfBuffer(data) {
@@ -17,10 +16,12 @@ function generateInvoicePdfBuffer(data) {
             const boldFont = 'Helvetica-Bold';
             const normalFont = 'Helvetica';
 
-            // --- DATOS DE MONEDA (CORREGIDO) ---
-            // Leemos los datos que inyectamos desde el servidor.
+            // --- DATOS DE MONEDA ---
             const currency = data.Moneda || 'MXN';
-            const exchangeRate = data.TipoCambio || '1.0000';
+            // Aseguramos que sea un número para cálculos
+            const exchangeRateVal = parseFloat(data.TipoCambio) || 1;
+            // Formato visual (ej: 18.5000)
+            const exchangeRateText = exchangeRateVal.toFixed(4);
 
             // --- Encabezado Azul ---
             doc.rect(0, 0, doc.page.width, 100).fill(primaryColor);
@@ -34,10 +35,10 @@ function generateInvoicePdfBuffer(data) {
             doc.text(`Fecha: ${new Date().toISOString().split('T')[0]}`, { align: 'right' });
 
             try {
-                // Si tienes la imagen en una ruta accesible, úsala
-                // doc.image('icono_1.png', 40, 5, { fit: [90, 90], align: 'center', valign: 'center' });
+                // Si tienes logo, descomenta esta línea:
+                // doc.image('path/to/logo.png', 40, 5, { fit: [90, 90], align: 'center', valign: 'center' });
             } catch (e) {
-                console.warn("⚠️ Imagen de logo no encontrada, se omitirá en el PDF");
+                console.warn("⚠️ Imagen de logo no encontrada");
             }
 
             doc.y = 120;
@@ -55,7 +56,7 @@ function generateInvoicePdfBuffer(data) {
                 doc.y = startY + Math.max(leftHeight, rightHeight) + 20;
             }
 
-            // --- Contenido de la Factura ---
+            // --- Datos Emisor/Receptor ---
             drawSectionWithColumns(
                 'DATOS DEL EMISOR',
                 `Nombre: Magnum Fitness S.A. de C.V.\nRFC: MAGM250101M99`,
@@ -69,18 +70,26 @@ function generateInvoicePdfBuffer(data) {
             );
 
             // --- Cálculos de impuestos ---
-            const totalCompra = parseFloat(data.totalCompra || data.total || 0);
+            // 'data.total' viene en la moneda de pago (ej. USD)
+            const totalCompra = parseFloat(data.total || 0);
+            
+            // Si es moneda extranjera, calculamos el equivalente en pesos para mostrarlo
+            // (Opcional, pero útil en facturas mexicanas)
+            const totalEnPesos = (totalCompra * exchangeRateVal).toFixed(2);
+
             const subtotal = totalCompra / 1.16;
             const iva = totalCompra - subtotal;
 
             // --- Tabla de Conceptos ---
             doc.font(boldFont).fontSize(11).text('CONCEPTOS', 40);
             const tableTop = doc.y + 5;
-            const headers = ['Clave Prod/Serv', 'Cant.', 'Unidad', 'Descripción', 'Valor Unitario', 'IVA', 'Importe'];
-            const colWidths = [80, 40, 50, 150, 80, 40, 80];
+            const headers = ['Clave Prod', 'Cant', 'Unidad', 'Descripción', 'Valor Unit.', 'IVA', 'Importe'];
+            const colWidths = [60, 30, 50, 180, 70, 40, 70]; // Ajustado para caber
             let currentX = 40;
+            
             doc.rect(currentX, tableTop, doc.page.width - 80, 20).fill(primaryColor);
             doc.fillColor('#FFFFFF').fontSize(8).font(boldFont);
+            
             headers.forEach((header, i) => {
                 doc.text(header, currentX + 5, tableTop + 6, { width: colWidths[i] - 10 });
                 currentX += colWidths[i];
@@ -88,57 +97,73 @@ function generateInvoicePdfBuffer(data) {
 
             const rowY = tableTop + 25;
             currentX = 40;
-            const description = data.productName || 'Producto o servicio según folio de compra';
+            const description = (data.productName || 'Producto/Servicio').substring(0, 45); // Cortar si es muy largo
             const rowData = [
-                '84111506', '1', 'Servicio', description,
+                '84111506', '1', 'E48', description,
                 `$${subtotal.toFixed(2)}`, '16%', `$${subtotal.toFixed(2)}`
             ];
+            
             doc.fillColor(fontColor).fontSize(8).font(normalFont);
             rowData.forEach((cell, i) => {
                 doc.text(cell, currentX + 5, rowY, { width: colWidths[i] - 10 });
                 currentX += colWidths[i];
             });
 
-            // --- Totales y Método de Pago ---
-            let finalY = rowY + 30;
+            // --- Totales y Datos de Pago ---
+            let finalY = rowY + 40; // Espacio después de la tabla
+            
+            // Columna Izquierda: Datos de Pago
             doc.font(boldFont).fontSize(9).text('Método de Pago:', 40, finalY, { continued: true })
                 .font(normalFont).text(` ${data.metodoPagoNombre || data.metodoPago}`);
             doc.font(boldFont).text('Forma de Pago:', 40, doc.y, { continued: true })
                 .font(normalFont).text(` ${data.formaPagoNombre || data.formaPago}`);
             
-            // --- CAMBIO AQUÍ: Mostrar Moneda y Tipo de Cambio ---
+            // --- MOSTRAR MONEDA Y TIPO DE CAMBIO ---
             doc.font(boldFont).text('Moneda:', 40, doc.y, { continued: true })
                 .font(normalFont).text(` ${currency}`);
 
-            // Solo mostramos el tipo de cambio si NO es MXN
             if (currency !== 'MXN') {
-                doc.moveDown(0.3); // Espacio extra
+                doc.moveDown(0.2);
                 doc.font(boldFont).text('Tipo de Cambio:', 40, doc.y, { continued: true })
-                   .font(normalFont).text(` $${parseFloat(exchangeRate).toFixed(4)} MXN`);
+                   .font(normalFont).text(` $${exchangeRateText} MXN`);
+                   
+                // Opcional: Mostrar el total en pesos también
+                doc.moveDown(0.2);
+                doc.fillColor('#777777');
+                doc.font(boldFont).text('Equivalente en Pesos:', 40, doc.y, { continued: true })
+                   .font(normalFont).text(` $${totalEnPesos} MXN`);
             }
-            // --------------------------------------------------
+            // ---------------------------------------
 
+            // Columna Derecha: Totales Numéricos
             const totalsX = 380;
+            doc.fillColor(fontColor); // Restaurar color negro
+            
             doc.font(normalFont).fontSize(10)
                 .text('Subtotal:', totalsX, finalY).text(`$${subtotal.toFixed(2)}`, { align: 'right' });
             doc.text('IVA (16%):', totalsX, doc.y).text(`$${iva.toFixed(2)}`, { align: 'right' });
-            doc.moveTo(totalsX - 10, doc.y + 15).lineTo(doc.page.width - 40, doc.y + 15).stroke(primaryColor);
+            
+            doc.moveTo(totalsX - 10, doc.y + 5).lineTo(doc.page.width - 40, doc.y + 5).stroke(primaryColor);
             doc.moveDown(0.5);
             
-            // --- CAMBIO AQUÍ: Total con la moneda correcta ---
+            // --- TOTAL FINAL ---
             doc.font(boldFont).fontSize(12).fillColor(primaryColor)
                 .text('TOTAL:', totalsX, doc.y)
                 .text(`$${totalCompra.toFixed(2)} ${currency}`, { align: 'right' });
-            // -------------------------------------------------
 
-            const footerY = doc.page.height - 150;
-            doc.fillColor('#AAAAAA').fontSize(8);
-            doc.rect(40, footerY, 100, 100).dash(5, { space: 5 }).stroke();
-            doc.font(boldFont).text('Sello Digital del CFDI:', 160, footerY)
-                .font(normalFont).text('(Placeholder - Generado por sistema de timbrado)', { width: 350 });
+            // --- Footer (Sellos) ---
+            const footerY = doc.page.height - 130;
+            doc.fillColor('#AAAAAA').fontSize(7);
+            
+            // Sello Digital
+            doc.font(boldFont).text('Sello Digital del CFDI:', 40, footerY);
+            doc.font(normalFont).text('||1.1|UUID|FECHA|SELLO_DIGITAL_MUY_LARGO_DEL_SAT_QUE_VA_AQUI||', { width: 500 });
+            
             doc.moveDown(0.5);
-            doc.font(boldFont).text('Sello del SAT:', 160, doc.y)
-                .font(normalFont).text('(Placeholder - Generado por sistema de timbrado)', { width: 350 });
+            
+            // Sello SAT
+            doc.font(boldFont).text('Sello del SAT:', 40, doc.y);
+            doc.font(normalFont).text('||SELLO_DEL_SAT_MUY_LARGO_QUE_VA_AQUI_PARA_VALIDAR||', { width: 500 });
 
             doc.end();
         } catch (err) {

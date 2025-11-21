@@ -2,33 +2,35 @@
 
 function generateXML(data) {
     // ==========================================================
-    // === DATOS DE MONEDA Y TIPO DE CAMBIO ===
+    // === 1. RECIBIR DATOS DE MONEDA Y TIPO DE CAMBIO ===
     // ==========================================================
-    // Leemos la moneda enviada desde el endpoint (o usamos MXN por defecto)
+    // Estos datos ya vienen calculados correctamente desde server.js
     const currency = data.Moneda || 'MXN';
+    
+    // El SAT requiere que si es MXN, el TipoCambio sea "1" (o se omita), 
+    // y si es USD, sea el valor real (ej. 20.5000).
     const exchangeRate = data.TipoCambio || '1';
     
-    // Regla del SAT: Si la moneda no es MXN, se debe incluir el TipoCambio.
-    // Construimos el atributo dinámicamente.
+    // Construir el atributo condicionalmente
+    // Si es MXN no se pone, si es otra moneda se agrega TipoCambio="..."
     const tipoCambioAttr = currency !== 'MXN' ? ` TipoCambio="${exchangeRate}"` : '';
 
     // ==========================================================
-    // === CÁLCULOS DE IMPUESTOS ===
+    // === 2. CÁLCULOS DE IMPUESTOS ===
     // ==========================================================
-    // Aseguramos que totalCompra sea un número (puede venir como string del frontend)
+    // IMPORTANTE: Todos estos montos están en la moneda de la factura (ej. USD)
+    // El XML NO se hace en pesos si la moneda es USD, se hace en USD.
     const totalConIva = parseFloat(data.totalCompra || data.total || 0);
     
-    // Cálculos básicos (asumiendo IVA 16% incluido)
-    // Nota: Para producción real, estos cálculos deben ser muy precisos con decimales.
+    // Desglosar IVA (16%)
     const subtotal = (totalConIva / 1.16).toFixed(2);
     const iva = (totalConIva - parseFloat(subtotal)).toFixed(2);
 
     const description = data.productName || 'Producto o servicio según folio de compra';
 
     // ==========================================================
-    // === GENERACIÓN DE LA CADENA XML ===
+    // === 3. GENERACIÓN DEL XML ===
     // ==========================================================
-    // Se inyecta ${tipoCambioAttr} dentro de la etiqueta <cfdi:Comprobante>
     const xmlString = `<?xml version="1.0" encoding="UTF-8"?>
 <cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sat.gob.mx/cfd/4 http://www.sat.gob.mx/sitio_internet/cfd/4/cfdv40.xsd"
     Version="4.0" Serie="MAG" Folio="001" Fecha="${new Date().toISOString()}"
