@@ -25,6 +25,7 @@ class Database {
                 );
             `);
             
+            // --- TABLA DE COMPRAS ACTUALIZADA ---
             await this.pool.query(`
                 CREATE TABLE IF NOT EXISTS purchases (
                     id SERIAL PRIMARY KEY,
@@ -33,6 +34,7 @@ class Database {
                     userEmail TEXT NOT NULL,
                     productName TEXT NOT NULL,
                     total NUMERIC(10, 2) NOT NULL,
+                    currency TEXT DEFAULT 'MXN',  -- <--- ¡NUEVA COLUMNA AGREGADA!
                     purchaseDate TIMESTAMPTZ NOT NULL,
                     status TEXT DEFAULT 'COMPLETADO' 
                 );
