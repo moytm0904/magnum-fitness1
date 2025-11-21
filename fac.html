@@ -8,63 +8,162 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Teko:wght@500;700&display=swap" rel="stylesheet">
-    
+
     <style>
         :root {
-            --accent: #ff8800; --accent-2: #ff5500; --muted: #adb5bd; --bg: #0a0a0a;
-            --card: #141414; --border-color: rgba(255, 255, 255, 0.07); --shadow-color: rgba(0, 0, 0, 0.5);
+            --accent: #ff8800;
+            --accent-2: #ff5500;
+            --muted: #adb5bd;
+            --bg: #0a0a0a;
+            --card: #141414;
+            --border-color: rgba(255, 255, 255, 0.07);
+            --shadow-color: rgba(0, 0, 0, 0.5);
             --input-bg: #1f1f1f;
         }
-        body { 
-            font-family: 'Poppins', sans-serif; 
-            background-color: var(--bg); 
-            color: #fff; 
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--bg);
+            color: #fff;
             line-height: 1.6;
             display: flex;
             flex-direction: column;
             min-height: 100vh;
         }
-        .navbar { 
-            background-color: rgba(10, 10, 10, 0.8); 
-            backdrop-filter: blur(10px); 
-            border-bottom: 1px solid var(--border-color); 
-        }
-        .navbar-brand { font-family: 'Teko', sans-serif; font-size: 1.8rem; letter-spacing: 1px; }
-        .nav-link { color: #fff !important; font-weight: 600; transition: color 0.3s ease; }
-        .nav-link:hover { color: var(--accent) !important; }
 
-        .main-container { 
+        .navbar {
+            background-color: rgba(10, 10, 10, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .navbar-brand {
+            font-family: 'Teko', sans-serif;
+            font-size: 1.8rem;
+            letter-spacing: 1px;
+        }
+
+        .nav-link {
+            color: #fff !important;
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }
+
+        .nav-link:hover {
+            color: var(--accent) !important;
+        }
+
+        .main-container {
             flex-grow: 1;
-            width: 85%; max-width: 900px; margin: 30px auto; 
-            background-color: var(--card); 
-            padding: 30px 40px; 
-            box-shadow: 0 10px 30px var(--shadow-color); 
-            border-radius: 12px; 
+            width: 85%;
+            max-width: 900px;
+            margin: 30px auto;
+            background-color: var(--card);
+            padding: 30px 40px;
+            box-shadow: 0 10px 30px var(--shadow-color);
+            border-radius: 12px;
             border: 1px solid var(--border-color);
         }
-        .section-title { font-family: 'Teko', sans-serif; font-size: 3rem; color: #fff; text-align: center; margin-bottom: 1.5rem; font-weight: 700; letter-spacing: 1px; }
-        .section-title span { color: var(--accent); }
-        .step-heading { font-size: 1.6em; color: var(--accent); margin-bottom: 20px; font-family: 'Teko', sans-serif; }
-        .form-row { display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 25px; }
-        .form-group { flex: 1; min-width: 180px; position: relative; }
-        .form-group label { display: block; margin-bottom: 5px; font-size: 0.9em; color: var(--muted); }
-        .form-group input, .cfdi-select { width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 1em; box-sizing: border-box; background-color: var(--input-bg); color: #fff; }
-        .form-group input[readonly] { background-color: #2a2a2a; cursor: not-allowed; }
-        
-        .btn-accent { background: linear-gradient(90deg, var(--accent), var(--accent-2)); color: #fff; font-weight: 700; border-radius: 8px; padding: .75rem 1.5rem; border: 0; transition: all .3s ease; box-shadow: 0 4px 15px rgba(255, 136, 0, 0.2); }
-        .btn-accent:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(255, 136, 0, 0.3); }
-        .btn-continue:disabled { background: var(--muted); cursor: not-allowed; box-shadow: none; transform: none; }
-        
-        .alert-message { margin-top: 25px; padding: 10px 15px; background-color: rgba(255, 136, 0, 0.1); border: 1px solid var(--accent); color: var(--accent); border-radius: 8px; }
-        
-        footer { background-color: #000; padding: 3rem 1rem; color: var(--muted); text-align: center; border-top: 1px solid var(--border-color); }
+
+        .section-title {
+            font-family: 'Teko', sans-serif;
+            font-size: 3rem;
+            text-align: center;
+            margin-bottom: 1.5rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        .section-title span {
+            color: var(--accent);
+        }
+
+        .step-heading {
+            font-size: 1.6em;
+            color: var(--accent);
+            margin-bottom: 20px;
+            font-family: 'Teko', sans-serif;
+        }
+
+        .form-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .form-group {
+            flex: 1;
+            min-width: 180px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+            color: var(--muted);
+        }
+
+        .form-group input,
+        .cfdi-select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1em;
+            background-color: var(--input-bg);
+            color: #fff;
+        }
+
+        .form-group input[readonly] {
+            background-color: #2a2a2a;
+            cursor: not-allowed;
+        }
+
+        .btn-accent {
+            background: linear-gradient(90deg, var(--accent), var(--accent-2));
+            color: #fff;
+            font-weight: 700;
+            border-radius: 8px;
+            padding: .75rem 1.5rem;
+            border: 0;
+            transition: all .3s ease;
+            box-shadow: 0 4px 15px rgba(255, 136, 0, 0.2);
+        }
+
+        .btn-accent:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(255, 136, 0, 0.3);
+        }
+
+        .btn-continue:disabled {
+            background: var(--muted);
+            cursor: not-allowed;
+        }
+
+        .alert-message {
+            margin-top: 25px;
+            padding: 10px 15px;
+            background-color: rgba(255, 136, 0, 0.1);
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            border-radius: 8px;
+        }
+
+        footer {
+            background-color: #000;
+            padding: 3rem 1rem;
+            color: var(--muted);
+            text-align: center;
+            border-top: 1px solid var(--border-color);
+        }
     </style>
 </head>
 <body>
 
     <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container">
-            <a class="navbar-brand text-warning" href="index.html">Magnum Firness</a>
+            <a class="navbar-brand text-warning" href="index.html">Magnum Fitness</a>
             <div class="collapse navbar-collapse">
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item"><a class="nav-link" href="index.html">Inicio</a></li>
@@ -76,19 +175,40 @@
 
     <main class="main-container">
         <h1 class="section-title"><span>¡Inicia</span> tu factura!</h1>
-        
-        <div class="step-section" id="step1">
+
+        <!-- PASO 1 -->
+        <div id="step1">
             <h2 class="step-heading">1. Ingresa los datos de tu compra</h2>
+
             <form id="ticketForm">
                 <div class="form-row">
-                    <div class="form-group"><label for="folioCompra">Folio de compra*</label><input type="text" id="folio" required maxlength="14"></div>
-                    <div class="form-group"><label for="invoiceId">ID de Factura*</label><input type="text" id="invoiceId" required maxlength="17"></div>
-                    <div class="form-group"><label for="fechaCompra">Fecha de compra*</label><input type="date" id="fechaCompra" required></div>
+                    <div class="form-group">
+                        <label for="folio">Folio de compra*</label>
+                        <input type="text" id="folio" required maxlength="14">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="invoiceId">ID de Factura*</label>
+                        <input type="text" id="invoiceId" required maxlength="17">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fechaCompra">Fecha de compra*</label>
+                        <input type="date" id="fechaCompra" required>
+                    </div>
                 </div>
+
                 <div class="form-row">
-                    <div class="form-group"><label for="totalCompra">Total</label><input type="number" id="totalCompra" step="0.01" readonly></div>
+                    <div class="form-group">
+                        <label id="totalLabel" for="totalCompra">Total</label>
+                        <input type="number" id="totalCompra" step="0.01" readonly>
+                    </div>
+
+                    <input type="hidden" id="monedaCompra" value="MXN">
                 </div>
-                <div class="alert-message" style="display: none;" id="validationAlert"></div>
+
+                <div id="validationAlert" class="alert-message" style="display:none;"></div>
+
                 <div class="d-flex justify-content-end mt-4">
                     <button type="button" class="btn btn-accent" id="validateTicketBtn">Validar Ticket</button>
                     <button type="button" class="btn btn-accent ms-2" id="continueBtn" disabled>Continuar</button>
@@ -96,68 +216,84 @@
             </form>
         </div>
 
-        <div class="step-section" id="step2" style="display: none;">
+        <!-- PASO 2 -->
+        <div id="step2" style="display:none;">
             <h2 class="step-heading">2. Ingresa tus datos de facturación</h2>
+
             <form id="billingForm">
+
                 <div class="form-row">
-                    <div class="form-group"><label for="rfc">RFC*</label><input type="text" id="rfc" required></div>
-                    <div class="form-group"><label for="razonSocial">Nombre o Razón Social</label><input type="text" id="razonSocial"></div>
+                    <div class="form-group">
+                        <label for="rfc">RFC*</label>
+                        <input type="text" id="rfc" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="razonSocial">Nombre o Razón Social</label>
+                        <input type="text" id="razonSocial">
+                    </div>
                 </div>
+
                 <div class="form-row">
-                    <div class="form-group"><label for="emailReceptor">Correo para envío*</label><input type="email" id="emailReceptor" required></div>
-                    <div class="form-group"><label for="domicilioFiscalReceptor">Código Postal (Receptor)*</label><input type="text" id="domicilioFiscalReceptor" required></div>
+                    <div class="form-group">
+                        <label for="emailReceptor">Correo para envío*</label>
+                        <input type="email" id="emailReceptor" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="domicilioFiscalReceptor">Código Postal (Receptor)*</label>
+                        <input type="text" id="domicilioFiscalReceptor" required>
+                    </div>
                 </div>
+
                 <div class="form-row">
                     <div class="form-group">
                         <label for="regimenFiscal">Régimen Fiscal Receptor</label>
                         <select id="regimenFiscal" class="cfdi-select">
                             <option value="601">601 - General de Ley Personas Morales</option>
                             <option value="603">603 - Personas Morales con Fines no Lucrativos</option>
-                            <option value="605">605 - Sueldos y Salarios e Ingresos Asimilados a Salarios</option>
+                            <option value="605">605 - Sueldos y Salarios</option>
                             <option value="606">606 - Arrendamiento</option>
-                            <option value="607">607 - Régimen de Enajenación o Adquisición de Bienes</option>
-                            <option value="608">608 - Demás ingresos</option>
-                            <option value="610">610 - Residentes en el Extranjero sin Establecimiento Permanente en México</option>
-                            <option value="611">611 - Ingresos por Dividendos (socios y accionistas)</option>
-                            <option value="612" selected>612 - Personas Físicas con Actividades Empresariales y Profesionales</option>
-                            <option value="614">614 - Ingresos por intereses</option>
-                            <option value="615">615 - Régimen de los Ingresos por Obtención de Premios</option>
+                            <option value="612" selected>612 - Personas Físicas con Actividades Empresariales</option>
                             <option value="616">616 - Sin obligaciones fiscales</option>
-                            <option value="620">620 - Sociedades Cooperativas de Producción que optan por diferir sus ingresos</option>
-                            <option value="621">621 - Incorporación Fiscal</option>
-                            <option value="622">622 - Actividades Agrícolas, Ganaderas, Silvícolas y Pesqueras</option>
-                            <option value="623">623 - Opcional para Grupos de Sociedades</option>
-                            <option value="624">624 - Coordinados</option>
-                            <option value="625">625 - Régimen de las Actividades Empresariales con ingresos a través de Plataformas Tecnológicas</option>
-                            <option value="626">626 - Régimen Simplificado de Confianza</option>
                         </select>
                     </div>
+
                     <div class="form-group">
                         <label for="usoCFDI">Uso CFDI</label>
                         <select id="usoCFDI" class="cfdi-select">
                             <option value="G01">G01 - Adquisición de mercancías</option>
-                            <option value="G02">G02 - Devoluciones, descuentos o bonificaciones</option>
                             <option value="G03" selected>G03 - Gastos en general</option>
-                            <option value="I01">I01 - Construcciones</option>
-                            <option value="I02">I02 - Mobiliario y equipo de oficina por inversiones</option>
-                            <option value="I03">I03 - Equipo de transporte</option>
-                            <option value="I04">I04 - Equipo de cómputo y accesorios</option>
-                            <option value="I05">I05 - Dados, troqueles, moldes, matrices y herramental</option>
-                            <option value="I06">I06 - Comunicaciones telefónicas</option>
-                            <option value="I07">I07 - Comunicaciones satelitales</option>
-                            <option value="I08">I08 - Otra maquinaria y equipo</option>
                             <option value="S01">S01 - Sin efectos fiscales</option>
                             <option value="CP01">CP01 - Pagos</option>
                         </select>
                     </div>
                 </div>
+
                 <div class="form-row">
-                    <div class="form-group"><label for="metodoPago">Método de Pago</label><select id="metodoPago" class="cfdi-select"><option value="PUE" selected>PUE - Pago en una sola exhibición</option><option value="PPD">PPD - Pago en parcialidades o diferido</option></select></div>
-                    <div class="form-group"><label for="formaPago">Forma de Pago</label><select id="formaPago" class="cfdi-select"><option value="03" selected>03 - Transferencia electrónica de fondos</option><option value="01">01 - Efectivo</option><option value="04">04 - Tarjeta de crédito</option><option value="28">28 - Tarjeta de débito</option></select></div>
+                    <div class="form-group">
+                        <label for="metodoPago">Método de Pago</label>
+                        <select id="metodoPago" class="cfdi-select">
+                            <option value="PUE" selected>PUE - Pago en una sola exhibición</option>
+                            <option value="PPD">PPD - Pago diferido</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="formaPago">Forma de Pago</label>
+                        <select id="formaPago" class="cfdi-select">
+                            <option value="03" selected>03 - Transferencia electrónica</option>
+                            <option value="01">01 - Efectivo</option>
+                            <option value="04">04 - Tarjeta de crédito</option>
+                            <option value="28">28 - Tarjeta de débito</option>
+                        </select>
+                    </div>
                 </div>
+
                 <div class="d-flex justify-content-end mt-4">
                     <button type="submit" class="btn btn-accent" id="generateInvoiceBtn">Enviar Factura por Correo</button>
                 </div>
+
             </form>
         </div>
     </main>
@@ -169,80 +305,102 @@
     </footer>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', () => {
+
             const step1 = document.getElementById('step1');
             const step2 = document.getElementById('step2');
+
             const validateTicketBtn = document.getElementById('validateTicketBtn');
             const continueBtn = document.getElementById('continueBtn');
             const validationAlert = document.getElementById('validationAlert');
-            const billingForm = document.getElementById('billingForm');
-            
+
             const folioCompra = document.getElementById('folio');
             const invoiceId = document.getElementById('invoiceId');
             const fechaCompra = document.getElementById('fechaCompra');
             const totalCompra = document.getElementById('totalCompra');
+            const monedaCompra = document.getElementById('monedaCompra');
+            const totalLabel = document.getElementById('totalLabel');
 
+            const billingForm = document.getElementById('billingForm');
+
+            /* validar ticket */
             validateTicketBtn.addEventListener('click', async () => {
-                const folio = folioCompra.value;
-                const idFactura = invoiceId.value;
+
+                const folio = folioCompra.value.trim();
+                const idFactura = invoiceId.value.trim();
                 const fecha = fechaCompra.value;
 
                 if (!folio || !idFactura || !fecha) {
                     validationAlert.textContent = 'Por favor, llena todos los campos de la compra.';
                     validationAlert.style.display = 'block';
+                    validationAlert.style.color = 'var(--accent)';
                     return;
                 }
-                
-                validateTicketBtn.textContent = 'Validando...';
+
                 validateTicketBtn.disabled = true;
+                validateTicketBtn.textContent = "Validando...";
                 validationAlert.style.display = 'none';
 
                 try {
-                    const response = await fetch('/validate-purchase', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ folio, invoiceId: idFactura, fecha })
-                });
 
-                    
+                    const response = await fetch('/validate-purchase', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ folio, invoiceId: idFactura, fecha })
+                    });
+
                     const data = await response.json();
 
                     if (response.ok) {
                         totalCompra.value = data.total.toFixed(2);
+
+                        const currency = data.currency || "MXN";
+                        monedaCompra.value = currency;
+                        totalLabel.textContent = `Total (${currency})`;
+
                         folioCompra.readOnly = true;
                         invoiceId.readOnly = true;
                         fechaCompra.readOnly = true;
+
                         continueBtn.disabled = false;
-                        validationAlert.textContent = '¡Compra validada! Continúa para ingresar tus datos fiscales.';
-                        validationAlert.style.color = '#28a745';
+
+                        validationAlert.textContent = "¡Compra validada! Continúa para ingresar tus datos fiscales.";
                         validationAlert.style.display = 'block';
+                        validationAlert.style.color = '#28a745';
+
                     } else {
                         validationAlert.textContent = data.message || 'No se encontró la compra.';
-                        validationAlert.style.color = 'var(--accent)';
                         validationAlert.style.display = 'block';
+                        validationAlert.style.color = 'var(--accent)';
                     }
-                } catch (error) {
+
+                } catch (e) {
                     validationAlert.textContent = 'Error de conexión con el servidor.';
                     validationAlert.style.display = 'block';
-                } finally {
-                    validateTicketBtn.textContent = 'Validar Ticket';
-                    validateTicketBtn.disabled = false;
                 }
+
+                validateTicketBtn.disabled = false;
+                validateTicketBtn.textContent = "Validar Ticket";
             });
 
+            /* continuar a paso 2 */
             continueBtn.addEventListener('click', () => {
                 step1.style.display = 'none';
                 step2.style.display = 'block';
             });
 
-            billingForm.addEventListener('submit', function(e) {
+            /* enviar factura */
+            billingForm.addEventListener('submit', e => {
                 e.preventDefault();
-                const generateBtn = document.getElementById('generateInvoiceBtn');
-                generateBtn.disabled = true;
-                generateBtn.textContent = "Enviando...";
+
+                const btn = document.getElementById('generateInvoiceBtn');
+                btn.disabled = true;
+                btn.textContent = "Enviando...";
 
                 const invoiceData = {
-                    totalCompra: parseFloat(document.getElementById('totalCompra').value) || 0,
+                    totalCompra: parseFloat(totalCompra.value) || 0,
+                    currency: monedaCompra.value,
+                    folio: folioCompra.value,
                     rfc: document.getElementById('rfc').value,
                     razonSocial: document.getElementById('razonSocial').value,
                     emailReceptor: document.getElementById('emailReceptor').value,
@@ -251,35 +409,39 @@
                     usoCFDI: document.getElementById('usoCFDI').value,
                     metodoPago: document.getElementById('metodoPago').value,
                     formaPago: document.getElementById('formaPago').value,
-                    regimenFiscalNombre: document.getElementById('regimenFiscal').options[document.getElementById('regimenFiscal').selectedIndex].text,
-                    usoCFDINombre: document.getElementById('usoCFDI').options[document.getElementById('usoCFDI').selectedIndex].text,
-                    metodoPagoNombre: document.getElementById('metodoPago').options[document.getElementById('metodoPago').selectedIndex].text,
-                    formaPagoNombre: document.getElementById('formaPago').options[document.getElementById('formaPago').selectedIndex].text,
+                    regimenFiscalNombre: document.getElementById('regimenFiscal').selectedOptions[0].text,
+                    usoCFDINombre: document.getElementById('usoCFDI').selectedOptions[0].text,
+                    metodoPagoNombre: document.getElementById('metodoPago').selectedOptions[0].text,
+                    formaPagoNombre: document.getElementById('formaPago').selectedOptions[0].text
                 };
 
                 fetch('/enviar-factura', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(invoiceData),
+                    body: JSON.stringify(invoiceData)
                 })
-                .then(response => response.json())
+                .then(res => res.json())
                 .then(data => {
+
                     if (data.success) {
-                        alert('¡Éxito! La factura ha sido enviada a tu correo.');
-                        window.location.href = 'index.html'; 
+                        alert("¡Éxito! La factura ha sido enviada a tu correo.");
+                        window.location.href = "index.html";
                     } else {
-                        alert('Error: No se pudo enviar la factura. ' + (data.message || ''));
+                        alert("No se pudo enviar la factura. " + (data.message || ""));
                     }
+
                 })
-                .catch(error => {
-                    alert('Ocurrió un error de conexión con el servidor.');
+                .catch(() => {
+                    alert("Error de conexión con el servidor.");
                 })
                 .finally(() => {
-                    generateBtn.disabled = false;
-                    generateBtn.textContent = "Enviar Factura por Correo";
+                    btn.disabled = false;
+                    btn.textContent = "Enviar Factura por Correo";
                 });
             });
+
         });
     </script>
+
 </body>
 </html>

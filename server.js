@@ -1120,11 +1120,7 @@ app.post('/api/products/:id/reviews', uploadReviews.fields([
 });
 
 
-// ==========================================================
-// === ENDPOINT DE TIENDA Y FACTURACIÓN (CORREGIDO) ===
-// ==========================================================
-
-// --- ENDPOINT PARA VALIDAR COMPRA ---
+// --- ENDPOINT PARA VALIDAR COMPRA (Actualizado con Moneda) ---
 app.post('/validate-purchase', async (req, res) => {
     const { fecha, folio, invoiceId } = req.body;
 
@@ -1134,12 +1130,15 @@ app.post('/validate-purchase', async (req, res) => {
     }
 
     try {
-        console.log('🟡 Validando compra:', { fecha, folio, invoiceId });
+        console.log('🟡 Validando compra para facturación:', { fecha, folio, invoiceId });
 
-        // 🔎 Buscar por folio, invoiceId y día local (zona horaria México)
+        // 🔎 Buscar por folio, invoiceId y día local
+        // CAMBIO: Agregamos 'currency' a la selección
         const query = `
-            SELECT total,
-                   (purchasedate AT TIME ZONE 'UTC' AT TIME ZONE 'America/Mexico_City')::date AS fecha_local
+            SELECT 
+                total,
+                currency, 
+                (purchasedate AT TIME ZONE 'UTC' AT TIME ZONE 'America/Mexico_City')::date AS fecha_local
             FROM purchases
             WHERE folio = $1
               AND invoiceid = $2
@@ -1151,10 +1150,16 @@ app.post('/validate-purchase', async (req, res) => {
         if (result.rows.length > 0) {
             const purchase = result.rows[0];
             console.log('✅ Compra encontrada:', purchase);
-            res.json({ success: true, total: parseFloat(purchase.total) });
+            
+            // CAMBIO: Devolver la moneda encontrada (o MXN si es vieja)
+            res.json({ 
+                success: true, 
+                total: parseFloat(purchase.total),
+                currency: purchase.currency || 'MXN' 
+            });
         } else {
             console.warn('⚠️ No se encontró la compra con los datos:', { folio, invoiceId, fecha });
-            res.status(404).json({ success: false, message: 'No se encontró la compra.' });
+            res.status(404).json({ success: false, message: 'No se encontró la compra con esos datos.' });
         }
 
     } catch (error) {
