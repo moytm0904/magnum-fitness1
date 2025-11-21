@@ -380,7 +380,12 @@ function main() {
                                 cardName: payerName,
                                 paypalTransactionId: captureData.id,
                                 productName: productNames,
-                                price: totalMXN.toFixed(2)
+                                
+                                // === CAMBIO AQUÍ ===
+                                // Antes enviabas 'totalMXN', ahora enviamos 'totalConverted' y 'userCurrency'
+                                price: totalConverted.toFixed(2), 
+                                currency: userCurrency
+                                // ===================
                             };
                             return fetch('/process-purchase', { 
                                 method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(purchaseData) 

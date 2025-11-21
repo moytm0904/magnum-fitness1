@@ -1166,72 +1166,60 @@ app.post('/validate-purchase', async (req, res) => {
 
 
 
+// --- Endpoint para PROCESAR COMPRA (Actualizado para guardar la moneda) ---
 app.post('/process-purchase', async (req, res) => {
-    if (!req.session.user) { return res.status(401).json({ success: false, message: 'No has iniciado sesión.' }); }
-    const data = req.body;
-    const folio = `A${Date.now()}`;
-    const invoiceId = data.paypalTransactionId;
-    const purchaseDate = new Date().toISOString();
-    const total = parseFloat(data.price);
+    // 1. Verificar sesión
+    if (!req.session.user) { return res.status(401).json({ success: false, message: 'No has iniciado sesión.' }); }
+    
+    const data = req.body;
+    const folio = `A${Date.now()}`;
+    const invoiceId = data.paypalTransactionId;
+    const purchaseDate = new Date().toISOString();
+    const total = parseFloat(data.price);
+    
+    // 2. Recibir la moneda desde el frontend (si no viene, usar MXN por defecto)
+    const currency = data.currency || 'MXN'; 
 
-    try {
-        // 1. Guardar la compra en la base de datos
-        await db.run(
-            'INSERT INTO purchases (userEmail, folio, invoiceId, productName, total, purchaseDate) VALUES ($1, $2, $3, $4, $5, $6)',
-            [data.userEmail, folio, invoiceId, data.productName, total, purchaseDate]
-        );
+    try {
+        // 3. Guardar la compra en la BD INCLUYENDO LA MONEDA
+        await db.run(
+            'INSERT INTO purchases (userEmail, folio, invoiceId, productName, total, currency, purchaseDate) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+            [data.userEmail, folio, invoiceId, data.productName, total, currency, purchaseDate]
+        );
 
-        // 2. Responder al frontend INMEDIATAMENTE.
-        // El usuario no debe esperar a que se envíe el correo.
-        res.json({ success: true });
+        // 4. Responder éxito al frontend inmediatamente
+        res.json({ success: true });
 
-        // --- INICIO DE CAMBIO ---
-        // 3. Intentar enviar el correo de recibo (después de responder)
-        // Lo envolvemos en su propio try/catch para que un fallo aquí
-        // no afecte la respuesta al usuario.
-        try {
-            const emailHtml = generateReceiptEmail(data, folio, invoiceId); 
-            
-            const msg = { 
-                from: {
-                    email: VERIFIED_SENDER,
-                    name: 'Tu Tienda en Línea'
-                }, 
-                to: data.userEmail, 
-                subject: `¡GRACIAS POR TU COMPRA! ID de factura: ${invoiceId}`,
-                html: emailHtml
-            };
-            
-            console.log('📨 Intentando enviar recibo de compra (SendGrid)...');
-            await sgMail.send(msg);
-            console.log('✅ Recibo de compra enviado.');
+        // 5. Intentar enviar el recibo por correo (en segundo plano)
+        try {
+            // Asegúrate de que la función generateReceiptEmail exista abajo en tu código
+            const emailHtml = generateReceiptEmail(data, folio, invoiceId); 
+            
+            const msg = { 
+                from: { email: VERIFIED_SENDER, name: 'Magnum Fitness' }, 
+                to: data.userEmail, 
+                subject: `¡GRACIAS POR TU COMPRA! ID de factura: ${invoiceId}`,
+                html: emailHtml
+            };
+            
+            console.log('📨 Enviando recibo de compra...');
+            await sgMail.send(msg);
+        } catch (emailError) {
+            console.warn('⚠️ La compra se guardó, pero falló el envío del recibo:', emailError.message);
+        }
 
-        } catch (emailError) {
-            // Si falla el envío de correo, solo lo registramos como advertencia
-            console.warn('⚠️ Falló el envío del recibo de compra (la compra SÍ se guardó):');
-            if (emailError.response) {
-              console.warn('Error Body (SendGrid):', emailError.response.body);
-            }
-        }
-        // --- FIN DE CAMBIO ---
-
-    } catch (error) { 
-        // Este 'catch' solo se activará si falla el guardado en la BD
-        console.error('❌ Error al guardar la compra en la BD:', error);
-        res.status(500).json({ success: false, message: 'No se pudo registrar la compra.' }); 
-    }
+    } catch (error) { 
+        console.error('❌ Error al guardar la compra en la base de datos:', error);
+        res.status(500).json({ success: false, message: 'No se pudo registrar la compra.' }); 
+    }
 });
 
-// --- Endpoint para OBTENER historial de compras ---
+// --- Endpoint para OBTENER historial de compras (Actualizado para leer la moneda) ---
 app.get('/my-purchases', async (req, res) => {
-    if (!req.session.user) {
-        return res.status(401).json([]);
-    }
-
+    if (!req.session.user) { return res.status(401).json([]); }
     const userEmail = req.session.user.email;
 
     try {
-        // Consulta mejorada con JOIN para traer el producto completo
         const query = `
             SELECT 
                 p.id,
@@ -1240,7 +1228,8 @@ app.get('/my-purchases', async (req, res) => {
                 p.useremail,
                 p.productname,
                 p.total,
-                TO_CHAR(p.purchaseDate, 'YYYY-MM-DD HH24:MI') AS purchaseDate, -- 🔹 Formato legible
+                p.currency,  -- <--- AQUÍ LEEMOS LA MONEDA GUARDADA
+                to_char(p.purchasedate AT TIME ZONE 'America/Mexico_City', 'DD/MM/YYYY') AS purchasedate,
                 p.status,
                 pr.name AS "product_name",
                 pr.description AS "product_description",
@@ -1249,14 +1238,14 @@ app.get('/my-purchases', async (req, res) => {
             FROM purchases p
             LEFT JOIN products pr ON p.productname = pr.name
             WHERE p.useremail = $1
-            ORDER BY p.purchaseDate DESC
+            ORDER BY p.purchasedate DESC
         `;
 
         const purchases = await db.all(query, [userEmail]);
         res.json(purchases);
 
     } catch (error) {
-        console.error('❌ Error al obtener compras:', error);
+        console.error('❌ Error al obtener historial de compras:', error);
         res.status(500).json({ message: "Error al obtener las compras.", error: error.message });
     }
 });
