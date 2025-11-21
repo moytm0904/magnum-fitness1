@@ -1322,70 +1322,104 @@ app.post('/request-return', async (req, res) => {
 
 
 
+// --- Endpoint de Facturación (Soporte Multimoneda) ---
 app.post('/enviar-factura', async (req, res) => {
-    try {
-        const data = req.body;
+    try {
+        const data = req.body; // Datos que vienen del formulario (rfc, nombre, items, etc.)
 
-        // 1️⃣ Generar el XML (sin cambios)
-        const xmlContent = generateXML(data);
-        const xmlBuffer = Buffer.from(xmlContent, 'utf-8');
+        // 1. Lógica de Moneda
+        // Si el frontend manda 'currency', lo usamos. Si no, MXN.
+        const requestedCurrency = data.currency || 'MXN';
+        let exchangeRate = 1;
 
-        // 2️⃣ Generar el PDF (sin cambios)
-        const pdfBuffer = await generateInvoicePdfBuffer(data);
+        // Si la moneda NO es MXN, buscamos la tasa en tu variable global 'exchangeRates'
+        if (requestedCurrency !== 'MXN' && exchangeRates[requestedCurrency]) {
+            exchangeRate = exchangeRates[requestedCurrency];
+        }
 
-        // 3️⃣ Preparar el contenido del correo (sin cambios)
-        const emailContent = `
-            <p>Estimado cliente,</p>
-            <p>Adjuntamos su factura electrónica con RFC <b>${data.rfc}</b> en formatos PDF y XML.</p>
-        `;
+        // 2. Preparar datos para los generadores (PDF/XML)
+        // Añadimos campos estándar del SAT para moneda extranjera
+        const invoiceData = {
+            ...data,
+            Moneda: requestedCurrency,
+            TipoCambio: exchangeRate.toFixed(4), // SAT pide 4 decimales o más
+            // Nota: Asumimos que 'data.items' y 'data.total' ya vienen con los montos correctos
+        };
 
-        // --- INICIO DE CAMBIO ---
+        // 3. Generar documentos
+        const xmlContent = generateXML(invoiceData);
+        const pdfBuffer = await generateInvoicePdfBuffer(invoiceData);
 
-        // 4️⃣ Convertir Buffers a Base64 (Requerido por SendGrid)
-        const pdfBase64 = pdfBuffer.toString('base64');
-        const xmlBase64 = xmlBuffer.toString('base64');
+        // 4. Crear apartado de conversión para el CORREO
+        let conversionHtml = '';
+        if (requestedCurrency !== 'MXN') {
+            conversionHtml = `
+                <div style="background-color: #2d2d30; padding: 15px; margin-top: 20px; border-radius: 6px; border: 1px solid #444;">
+                    <h3 style="color: #f7a610; margin-top: 0; font-size: 16px;">Detalles de Divisa</h3>
+                    <table width="100%" style="color: #ddd; font-size: 14px;">
+                        <tr>
+                            <td style="padding: 5px 0;">Moneda de Emisión:</td>
+                            <td style="text-align: right; font-weight: bold;">${requestedCurrency}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 5px 0;">Tipo de Cambio:</td>
+                            <td style="text-align: right; font-weight: bold;">$${exchangeRate.toFixed(4)} MXN</td>
+                        </tr>
+                        <tr>
+                            <td style="border-top: 1px solid #555; padding-top: 5px; margin-top: 5px;"><strong>Total Pagado:</strong></td>
+                            <td style="border-top: 1px solid #555; padding-top: 5px; margin-top: 5px; text-align: right; color: #f7a610;"><strong>$${data.total} ${requestedCurrency}</strong></td>
+                        </tr>
+                    </table>
+                </div>
+            `;
+        }
 
-        // 5️⃣ Preparar el mensaje para SendGrid
-        const msg = {
-            to: data.emailReceptor,
-            from: {
-                email: VERIFIED_SENDER,
-                name: "Tu Portal de Facturación"
-            },
-            subject: `Factura Electrónica de su Compra`,
-            html: createStyledEmail('Factura Electrónica', emailContent),
-            attachments: [
-                { 
-                    content: pdfBase64,
-                    filename: `Factura-${data.rfc}.pdf`,
-                    type: 'application/pdf',
-                    disposition: 'attachment'
-                },
-                { 
-                    content: xmlBase64,
-                    filename: `Factura-${data.rfc}.xml`,
-                    type: 'application/xml', // o 'text/xml'
-                    disposition: 'attachment'
-                }
-            ]
-        };
+        // 5. Contenido Principal del Correo
+        const emailContent = `
+            <p>Estimado cliente,</p>
+            <p>Adjuntamos su factura electrónica correspondiente a la compra con folio <b>${data.folio || 'N/A'}</b>.</p>
+            <p>RFC Receptor: <b>${data.rfc}</b></p>
+            ${conversionHtml} 
+            <p style="font-size: 12px; color: #888; margin-top: 20px;">Este correo contiene archivos adjuntos (PDF y XML) válidos para efectos fiscales.</p>
+        `;
+        
+        const msg = {
+            to: data.emailReceptor,
+            from: { 
+                email: VERIFIED_SENDER, 
+                name: "Tu Portal de Facturación" 
+            },
+            subject: `Factura Electrónica - ${data.rfc} (${requestedCurrency})`,
+            html: createStyledEmail('Factura Emitida', emailContent),
+            attachments: [
+                { 
+                    content: pdfBuffer.toString('base64'), 
+                    filename: `Factura-${data.rfc}.pdf`, 
+                    type: 'application/pdf', 
+                    disposition: 'attachment' 
+                },
+                { 
+                    content: Buffer.from(xmlContent).toString('base64'), 
+                    filename: `Factura-${data.rfc}.xml`, 
+                    type: 'application/xml', // o 'text/xml'
+                    disposition: 'attachment' 
+                }
+            ]
+        };
 
-        // 6️⃣ Enviar el correo con SendGrid
-        console.log('📨 Intentando enviar factura (SendGrid)...');
-        await sgMail.send(msg);
-        console.log('✅ Factura enviada correctamente.');
-        // --- FIN DE CAMBIO ---
+        // 6. Enviar
+        console.log(`📨 Enviando factura en ${requestedCurrency} a ${data.emailReceptor}...`);
+        await sgMail.send(msg);
+        
+        res.json({ success: true, message: "Factura enviada y generada en " + requestedCurrency });
 
-        res.json({ success: true, message: "Factura enviada exitosamente al correo del cliente." });
-
-    } catch (error) {
-        console.error("❌ Error al generar o enviar la factura:", error);
-        // Log de error específico de SendGrid
-        if (error.response) {
-          console.error('Error Body (SendGrid):', error.response.body);
-        }
-        res.status(500).json({ success: false, message: "Error al generar o enviar la factura." });
-    }
+    } catch (error) {
+        console.error("❌ Error al generar o enviar la factura:", error);
+        if (error.response) {
+            console.error('Error SendGrid:', error.response.body);
+        }
+        res.status(500).json({ success: false, message: "Error al procesar la factura." });
+    }
 });
 
 

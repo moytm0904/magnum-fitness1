@@ -1,5 +1,3 @@
-// generators/pdfGenerator.js
-
 const PDFDocument = require('pdfkit');
 
 function generateInvoicePdfBuffer(data) {
@@ -18,6 +16,12 @@ function generateInvoicePdfBuffer(data) {
             const boldFont = 'Helvetica-Bold';
             const normalFont = 'Helvetica';
 
+            // --- DATOS DE MONEDA (NUEVO) ---
+            // Leemos los datos que inyectamos desde el servidor.
+            // Si no vienen, usamos valores por defecto.
+            const currency = data.Moneda || 'MXN';
+            const exchangeRate = data.TipoCambio || '1.0000';
+
             // --- Encabezado Azul ---
             doc.rect(0, 0, doc.page.width, 100).fill(primaryColor);
             doc.fillColor('#FFFFFF')
@@ -31,9 +35,8 @@ function generateInvoicePdfBuffer(data) {
 
             try {
                 // Si tienes la imagen en una ruta accesible, úsala
-                doc.image('icono_1.png', 40, 5, { fit: [90, 90], align: 'center', valign: 'center' });
+                // doc.image('icono_1.png', 40, 5, { fit: [90, 90], align: 'center', valign: 'center' });
             } catch (e) {
-                // Si no existe la imagen (por ejemplo en hosting), no falla el PDF
                 console.warn("⚠️ Imagen de logo no encontrada, se omitirá en el PDF");
             }
 
@@ -66,7 +69,8 @@ function generateInvoicePdfBuffer(data) {
             );
 
             // --- Cálculos de impuestos ---
-            const totalCompra = data.totalCompra;
+            // Aseguramos que totalCompra sea un número válido
+            const totalCompra = parseFloat(data.totalCompra || data.total || 0);
             const subtotal = totalCompra / 1.16;
             const iva = totalCompra - subtotal;
 
@@ -102,8 +106,18 @@ function generateInvoicePdfBuffer(data) {
                 .font(normalFont).text(` ${data.metodoPagoNombre || data.metodoPago}`);
             doc.font(boldFont).text('Forma de Pago:', 40, doc.y, { continued: true })
                 .font(normalFont).text(` ${data.formaPagoNombre || data.formaPago}`);
+            
+            // --- CAMBIO AQUÍ: Moneda y Tipo de Cambio ---
             doc.font(boldFont).text('Moneda:', 40, doc.y, { continued: true })
-                .font(normalFont).text(' MXN');
+                .font(normalFont).text(` ${currency}`);
+
+            // Solo mostrar tipo de cambio si la moneda no es MXN
+            if (currency !== 'MXN') {
+                doc.moveDown(0.2);
+                doc.font(boldFont).text('Tipo de Cambio:', 40, doc.y, { continued: true })
+                   .font(normalFont).text(` $${exchangeRate} MXN`);
+            }
+            // -------------------------------------------
 
             const totalsX = 380;
             doc.font(normalFont).fontSize(10)
@@ -111,8 +125,12 @@ function generateInvoicePdfBuffer(data) {
             doc.text('IVA (16%):', totalsX, doc.y).text(`$${iva.toFixed(2)}`, { align: 'right' });
             doc.moveTo(totalsX - 10, doc.y + 15).lineTo(doc.page.width - 40, doc.y + 15).stroke(primaryColor);
             doc.moveDown(0.5);
+            
+            // --- CAMBIO AQUÍ: Total con la moneda dinámica ---
             doc.font(boldFont).fontSize(12).fillColor(primaryColor)
-                .text('TOTAL:', totalsX, doc.y).text(`$${totalCompra.toFixed(2)} MXN`, { align: 'right' });
+                .text('TOTAL:', totalsX, doc.y)
+                .text(`$${totalCompra.toFixed(2)} ${currency}`, { align: 'right' });
+            // -------------------------------------------------
 
             const footerY = doc.page.height - 150;
             doc.fillColor('#AAAAAA').fontSize(8);
