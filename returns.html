@@ -1,40 +1,54 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Mis Compras - Magnum Fitness</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Teko:wght@500;700&display=swap" rel="stylesheet">
-    
+
+    <!-- PDF.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
-    
+
     <link rel="stylesheet" href="assets/css/main.css">
     <style>
-        body { display: flex; flex-direction: column; min-height: 100vh; }
+        :root{
+            --bg: #0b0d10;
+            --muted: #cbd5e1;
+            --border-color: rgba(255,255,255,0.06);
+            --accent-2: #ffc107; /* amarillo */
+            --card-bg: #111217;
+        }
+
+        html,body { height: 100%; }
+        body { display: flex; flex-direction: column; min-height: 100vh; background: var(--bg); color: #fff; font-family: 'Poppins', sans-serif; }
         .main-container { flex-grow: 1; }
+
+        .section-title { font-family: 'Teko', sans-serif; font-size: 2.2rem; margin-bottom: .5rem; color: #fff; }
+        .section-title span { color: var(--accent-2); }
+
         .purchase-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        .purchase-table th, .purchase-table td { 
-            padding: 12px 15px; 
-            text-align: left; 
-            border-bottom: 1px solid var(--border-color); 
+        .purchase-table th, .purchase-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
             vertical-align: middle;
         }
-        /* Estilo para las filas de desglose */
         .product-sub-row td {
-            border-bottom-color: rgba(255, 255, 255, 0.05); /* Línea más tenue */
+            border-bottom-color: rgba(255, 255, 255, 0.03);
             padding-top: 8px;
             padding-bottom: 8px;
+            opacity: .95;
         }
-        .purchase-table th { font-weight: bold; color: var(--muted); }
+        .purchase-table th { font-weight: 700; color: var(--muted); }
         .btn-view-content {
-            background-color: #28a745; /* Verde éxito */
+            background-color: #28a745;
             color: #fff;
             border: none;
-            padding: 5px 10px;
-            border-radius: 5px;
+            padding: 6px 10px;
+            border-radius: 6px;
             cursor: pointer;
             font-weight: 600;
         }
@@ -42,25 +56,31 @@
             background-color: transparent;
             border: 1px solid var(--accent-2);
             color: var(--accent-2);
-            padding: 5px 10px;
-            border-radius: 5px;
+            padding: 6px 10px;
+            border-radius: 6px;
             cursor: pointer;
+            font-weight: 600;
         }
         .btn-return:disabled {
             border-color: var(--border-color);
             color: var(--muted);
             cursor: not-allowed;
+            opacity: .7;
         }
-        .status-returned { color: #dc3545; font-weight: bold; }
-        
-        .pdf-viewer-modal .modal-dialog { max-width: 800px; }
-        #pdf-canvas-container { 
-            position: relative; 
-            background-color: #333; 
+        .status-returned { color: #dc3545; font-weight: 700; }
+
+        .pdf-viewer-modal .modal-dialog { max-width: 900px; }
+        #pdf-canvas-container {
+            position: relative;
+            background-color: #222;
             text-align: center;
-            overflow: auto; 
+            overflow: auto;
             max-height: 70vh;
+            padding: 12px;
         }
+        footer { padding: 1rem 0; }
+        .navbar { background: #0f1720; }
+        .navbar .navbar-brand { font-weight: 700; font-family: 'Teko', sans-serif; }
     </style>
 </head>
 <body>
@@ -68,10 +88,10 @@
     <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container">
             <a class="navbar-brand text-warning" href="index.html">Magnum Fitness</a>
-            <ul class="navbar-nav ms-auto align-items-center">
+            <ul class="navbar-nav ms-auto align-items-center d-flex flex-row gap-3">
                 <li class="nav-item"><a class="nav-link" href="index.html">Inicio</a></li>
                 <li class="nav-item"><a class="nav-link" href="fac.html">Facturación</a></li>
-                <li class="nav-item"><button id="logoutBtnNav" class="logout-btn-nav" style="background:none; border:none; color: #fff !important; font-weight: 600;">Cerrar Sesión</button></li>
+                <li class="nav-item"><button id="logoutBtnNav" class="logout-btn-nav btn btn-link p-0" style="color:#fff; font-weight:600;">Cerrar Sesión</button></li>
             </ul>
         </div>
     </nav>
@@ -92,45 +112,66 @@
                     </tr>
                 </thead>
                 <tbody id="purchases-body">
-                    </tbody>
+                    <!-- filas dinámicas -->
+                </tbody>
             </table>
         </div>
     </main>
 
-    <div class="modal fade" id="pdfViewerModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
+    <!-- Modal Visor de PDF -->
+    <div class="modal fade" id="pdfViewerModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg pdf-viewer-modal">
             <div class="modal-content bg-dark text-white">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="pdf-modal-title">Contenido Desbloqueado</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    <h5 class="modal-title" id="pdf-modal-title">Contenido</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>
                 <div class="modal-body">
                     <div id="pdf-canvas-container">
                         <canvas id="pdf-canvas"></canvas>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mt-3">
-                        <button class="btn btn-outline-light" id="prev-page"><i class="bi bi-chevron-left"></i></button>
-                        <div>
-                            <button class="btn btn-outline-light" id="zoom-out"><i class="bi bi-zoom-out"></i></button>
+                        <button class="btn btn-outline-light" id="prev-page" title="Página anterior"><i class="bi bi-chevron-left"></i></button>
+                        <div class="d-flex align-items-center">
+                            <button class="btn btn-outline-light me-2" id="zoom-out" title="Disminuir zoom"><i class="bi bi-zoom-out"></i></button>
                             <span class="mx-2">Página <span id="page-num"></span> de <span id="page-count"></span></span>
-                            <button class="btn btn-outline-light" id="zoom-in"><i class="bi bi-zoom-in"></i></button>
+                            <button class="btn btn-outline-light ms-2" id="zoom-in" title="Aumentar zoom"><i class="bi bi-zoom-in"></i></button>
                         </div>
-                        <button class="btn btn-outline-light" id="next-page"><i class="bi bi-chevron-right"></i></button>
+                        <button class="btn btn-outline-light" id="next-page" title="Siguiente página"><i class="bi bi-chevron-right"></i></button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Modal Confirmación (reemplaza alert/confirm) -->
+    <div class="modal fade" id="appConfirmModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-white">
+          <div class="modal-header">
+            <h5 class="modal-title" id="confirmModalTitle">Confirmación</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+          </div>
+          <div class="modal-body">
+            <p id="confirmModalBody">¿Estás seguro?</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-primary" id="confirmModalConfirmBtn">Confirmar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <footer class="mt-auto">
         <div class="container">
-             <small class="text-muted">&copy; 2025 Magnum Fitness. Todos los derechos reservados.</small>
+            <small class="text-muted">&copy; 2025 Magnum Fitness. Todos los derechos reservados.</small>
         </div>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // --- Lógica del Visor de PDF ---
+        // --- Referencias UI ---
         const pdfViewerModal = new bootstrap.Modal(document.getElementById('pdfViewerModal'));
         const pdfCanvas = document.getElementById('pdf-canvas');
         const pageNumEl = document.getElementById('page-num');
@@ -140,141 +181,190 @@
         const zoomInBtn = document.getElementById('zoom-in');
         const zoomOutBtn = document.getElementById('zoom-out');
 
-        let pdfDoc = null, pageNum = 1, pageIsRendering = false, pageNumIsPending = null, currentScale = 1.5;
+        // pdf.js namespace (compatibilidad)
+        const pdfjsLib = window['pdfjs-dist/build/pdf'] || window.pdfjsLib;
+        if (pdfjsLib) {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js';
+        }
 
-        // ESTA ES LA VERSIÓN COMPLETA, SIN MARCA DE AGUA
+        let pdfDoc = null;
+        let pageNum = 1;
+        let pageIsRendering = false;
+        let pageNumIsPending = null;
+        let currentScale = 1.5;
+
+        // Renderizar página
         const renderPage = num => {
             pageIsRendering = true;
             pdfDoc.getPage(num).then(page => {
                 const viewport = page.getViewport({ scale: currentScale });
+                const ctx = pdfCanvas.getContext('2d');
                 pdfCanvas.height = viewport.height;
                 pdfCanvas.width = viewport.width;
-                page.render({ canvasContext: pdfCanvas.getContext('2d'), viewport }).promise.then(() => {
+                const renderContext = { canvasContext: ctx, viewport };
+                page.render(renderContext).promise.then(() => {
                     pageIsRendering = false;
-                    if (pageNumIsPending !== null) { renderPage(pageNumIsPending); pageNumIsPending = null; }
+                    if (pageNumIsPending !== null) {
+                        renderPage(pageNumIsPending);
+                        pageNumIsPending = null;
+                    }
                 });
+            }).catch(err => {
+                console.error('Error renderizando página PDF:', err);
             });
             pageNumEl.textContent = num;
         };
-        const queueRenderPage = num => { if (pageIsRendering) pageNumIsPending = num; else renderPage(num); };
-        
-        prevPageBtn.addEventListener('click', () => { if (pageNum <= 1) return; pageNum--; queueRenderPage(pageNum); });
-        nextPageBtn.addEventListener('click', () => { if (pageNum >= pdfDoc.numPages) return; pageNum++; queueRenderPage(pageNum); });
-        zoomOutBtn.addEventListener('click', () => { if (currentScale <= 0.5) return; currentScale -= 0.25; renderPage(pageNum); });
-        zoomInBtn.addEventListener('click', () => { if (currentScale >= 3.0) return; currentScale += 0.25; renderPage(pageNum); });
 
-        // --- Lógica de la Página "Mis Compras" ---
+        const queueRenderPage = num => {
+            if (pageIsRendering) pageNumIsPending = num;
+            else renderPage(num);
+        };
+
+        prevPageBtn.addEventListener('click', () => {
+            if (!pdfDoc || pageNum <= 1) return;
+            pageNum--;
+            queueRenderPage(pageNum);
+        });
+        nextPageBtn.addEventListener('click', () => {
+            if (!pdfDoc || pageNum >= pdfDoc.numPages) return;
+            pageNum++;
+            queueRenderPage(pageNum);
+        });
+        zoomOutBtn.addEventListener('click', () => {
+            if (currentScale <= 0.5) return;
+            currentScale = +(currentScale - 0.25).toFixed(2);
+            renderPage(pageNum);
+        });
+        zoomInBtn.addEventListener('click', () => {
+            if (currentScale >= 3.0) return;
+            currentScale = +(currentScale + 0.25).toFixed(2);
+            renderPage(pageNum);
+        });
+
+        // --- Modal de Confirmación (reemplaza alert/confirm) ---
+        const appConfirmModal = new bootstrap.Modal(document.getElementById('appConfirmModal'));
+        const confirmModalTitle = document.getElementById('confirmModalTitle');
+        const confirmModalBody = document.getElementById('confirmModalBody');
+        const confirmModalConfirmBtn = document.getElementById('confirmModalConfirmBtn');
+        let onConfirmCallback = null;
+
+        function showModal(title, body, onConfirm = null) {
+            confirmModalTitle.textContent = title;
+            confirmModalBody.textContent = body;
+            onConfirmCallback = onConfirm;
+
+            if (onConfirm) {
+                confirmModalConfirmBtn.style.display = 'inline-block';
+            } else {
+                confirmModalConfirmBtn.style.display = 'none';
+            }
+            appConfirmModal.show();
+        }
+
+        confirmModalConfirmBtn.addEventListener('click', () => {
+            if (typeof onConfirmCallback === 'function') {
+                try { onConfirmCallback(); } catch (e) { console.error(e); }
+            }
+            onConfirmCallback = null;
+            appConfirmModal.hide();
+        });
+
+        // --- Lógica principal ---
         document.addEventListener('DOMContentLoaded', async () => {
             try {
-                // 1. Verificar sesión
+                // 1) Verificar sesión
                 const sessionRes = await fetch('/check-session');
                 const sessionData = await sessionRes.json();
                 if (!sessionData.loggedIn) {
-                    alert('Debes iniciar sesión para ver tus compras.');
-                    window.location.href = 'login.html';
+                    showModal('Acceso Denegado', 'Debes iniciar sesión para ver tus compras.');
+                    // redirigir al cerrar modal (solo una vez)
+                    document.getElementById('appConfirmModal').addEventListener('hidden.bs.modal', () => {
+                        window.location.href = 'login.html';
+                    }, { once: true });
                     return;
                 }
-                
+
+                // Logout
                 document.getElementById('logoutBtnNav').addEventListener('click', () => {
-                    fetch('/logout', { method: 'POST' }).then(() => window.location.href = 'index.html');
+                    fetch('/logout', { method: 'POST' }).then(() => window.location.href = 'index.html').catch(() => window.location.href = 'index.html');
                 });
 
-                // 2. Obtener la lista de TODOS los productos (para obtener las URLs de PDF)
+                // 2) Obtener productos (para mapear pdfs)
                 const productsRes = await fetch('/api/products');
                 const allProducts = await productsRes.json();
-                
-                // 3. Crear un mapa dinámico (ej: "Plan: Fuerza Bruta" -> "assets/pdf/plan_fuerza.pdf")
                 const productMap = {};
-                allProducts.forEach(p => {
-                    if (p.pdf_url) {
-                        productMap[p.name] = p.pdf_url;
-                    }
-                });
+                if (Array.isArray(allProducts)) {
+                    allProducts.forEach(p => {
+                        if (p.name && p.pdf_url) productMap[p.name] = p.pdf_url;
+                    });
+                }
 
-                // 4. Obtener las compras del usuario
+                // 3) Obtener compras
                 const purchasesRes = await fetch('/my-purchases');
                 const purchases = await purchasesRes.json();
                 const purchasesBody = document.getElementById('purchases-body');
+                purchasesBody.innerHTML = ''; // limpiar
 
                 if (!purchases || purchases.length === 0) {
                     purchasesBody.innerHTML = '<tr><td colspan="6" class="text-center p-4">Aún no has realizado ninguna compra.</td></tr>';
                 } else {
-                    // 5. Renderizar cada compra
+                    // 4) Renderizar filas
                     purchases.forEach(purchase => {
-                    let purchaseDate = '';
-                if (purchase.purchaseDate) {
-                    // Si viene en formato ISO (con "T")
-                    if (purchase.purchaseDate.includes('T')) {
-                        purchaseDate = new Date(purchase.purchaseDate).toLocaleDateString('es-MX');
-                    } 
-                    // Si viene en formato SQL "YYYY-MM-DD HH:mm:ss"
-                    else if (/^\d{4}-\d{2}-\d{2}/.test(purchase.purchaseDate)) {
-                        const [datePart] = purchase.purchaseDate.split(' ');
-                        const [year, month, day] = datePart.split('-');
-                        purchaseDate = `${day}/${month}/${year}`;
-                    }
+                        const purchaseDate = purchase.purchasedate || purchase.date || '-';
+                        const currency = purchase.currency || 'MXN';
+                        const formattedTotal = `${currency === 'MXN' ? '$' : currency + ' '}${Number(purchase.total || 0).toFixed(2)}`;
+
+                        const isReturned = (purchase.status && purchase.status !== 'COMPLETADO');
+                        const rawNames = purchase.productname || purchase.product_name || purchase.productName || '';
+                        const purchasedProductNames = (typeof rawNames === 'string' && rawNames.trim() !== '')
+                            ? rawNames.split(',').map(n => n.trim()).filter(n => n.length)
+                            : ['Producto desconocido'];
+
+                        purchasedProductNames.forEach((productName, index) => {
+                            const row = document.createElement('tr');
+                            if (index > 0) row.classList.add('product-sub-row');
+
+                            let pdfUrl = '';
+                            let cleanProductName = productName;
+                            for (const key in productMap) {
+                                if (cleanProductName.includes(key)) {
+                                    pdfUrl = productMap[key];
+                                    cleanProductName = key;
+                                    break;
+                                }
+                            }
+
+                            const viewButtonHtml = (pdfUrl && !isReturned)
+                                ? `<button class="btn-view-content" data-pdf-url="${pdfUrl}" type="button">Ver Contenido</button>`
+                                : '';
+
+                            const returnButtonHtml = (index === 0)
+                                ? `<button class="btn-return" data-id="${purchase.id || ''}" ${isReturned ? 'disabled' : ''} type="button">
+                                        ${isReturned ? (purchase.status || 'DEVOLUCIÓN') : 'Solicitar Devolución'}
+                                   </button>`
+                                : '';
+
+                            row.innerHTML = `
+                                <td>${cleanProductName}</td>
+                                <td>${index === 0 ? purchaseDate : ''}</td>
+                                <td>${index === 0 ? formattedTotal : ''}</td>
+                                <td>${index === 0 ? (purchase.folio || '-') : ''}</td>
+                                <td class="${index === 0 && isReturned ? 'status-returned' : ''}">${index === 0 ? (purchase.status ? purchase.status.replace(/_/g, ' ') : '') : ''}</td>
+                                <td class="d-flex gap-2">${viewButtonHtml}${returnButtonHtml}</td>
+                            `;
+                            purchasesBody.appendChild(row);
+                        });
+                    });
                 }
 
-                    const isReturned = purchase.status !== 'COMPLETADO';
-                    const statusClass = isReturned ? 'status-returned' : '';
+                // 5) Manejo de eventos por delegación (seguro para botones dinámicos)
+                purchasesBody.addEventListener('click', (e) => {
+                    const target = e.target;
+                    if (target.matches('.btn-view-content')) {
+                        const url = target.dataset.pdfUrl;
+                        if (!url) return showModal('Error', 'No se encontró el documento PDF.');
+                        if (!pdfjsLib) return showModal('Error', 'Librería PDF.js no cargada.');
 
-                    // ✅ Aceptar ambos formatos y evitar errores si es undefined
-                    const rawNames = purchase.productname || purchase.product_name || purchase.productName || '';
-                    const purchasedProductNames = (typeof rawNames === 'string' && rawNames.trim() !== '')
-                    ? rawNames.split(',').map(n => n.trim())
-                    : ['Producto desconocido'];
-
-    purchasedProductNames.forEach((productName, index) => {
-        const row = document.createElement('tr');
-
-        let pdfUrl = '';
-        let cleanProductName = productName.trim();
-
-        // Buscar el PDF en el mapa
-        for (const key in productMap) {
-            if (cleanProductName.includes(key)) {
-                pdfUrl = productMap[key];
-                cleanProductName = key;
-                break;
-            }
-        }
-
-        // Botones
-        const viewButton = (pdfUrl && !isReturned) 
-            ? `<button class="btn-view-content" data-pdf-url="${pdfUrl}">Ver Contenido</button>` 
-            : '';
-
-        const returnButton = (index === 0)
-            ? `<button class="btn-return" data-id="${purchase.id}" ${isReturned ? 'disabled' : ''}>
-                   ${isReturned ? purchase.status.replace('_', ' ') : 'Solicitar Devolución'}
-               </button>`
-            : '';
-
-        if (index > 0) row.classList.add('product-sub-row');
-
-        row.innerHTML = `
-            <td>${cleanProductName}</td>
-            <td>${index === 0 ? purchaseDate : ''}</td>
-            <td>${index === 0 ? `$${Number(purchase.total || 0).toFixed(2)} MXN` : ''}</td>
-            <td>${index === 0 ? (purchase.folio || '-') : ''}</td>
-            <td class="${statusClass}">${index === 0 ? purchase.status.replace('_', ' ') : ''}</td>
-            <td class="d-flex gap-2">${viewButton}${returnButton}</td>
-        `;
-        purchasesBody.appendChild(row);
-    });
-});
-
-                }
-                
-                // 6. Asignar eventos a los botones (sin cambios)
-                document.querySelectorAll('.btn-return').forEach(button => {
-                    button.addEventListener('click', handleReturnRequest);
-                });
-                
-                document.querySelectorAll('.btn-view-content').forEach(button => {
-                    button.addEventListener('click', (e) => {
-                        const url = e.target.dataset.pdfUrl;
-                        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js`;
                         pdfjsLib.getDocument(url).promise.then(pdfDoc_ => {
                             pdfDoc = pdfDoc_;
                             pageCountEl.textContent = pdfDoc.numPages;
@@ -282,28 +372,27 @@
                             currentScale = 1.5;
                             renderPage(pageNum);
                             pdfViewerModal.show();
+                        }).catch(err => {
+                            console.error('Error cargando PDF:', err);
+                            showModal('Error', 'No se pudo cargar el PDF.');
                         });
-                    });
+                    } else if (target.matches('.btn-return')) {
+                        handleReturnRequest(target);
+                    }
                 });
 
             } catch (error) {
                 console.error('Error:', error);
-                alert('No se pudo cargar la página. Intenta recargar.');
+                showModal('Error', 'No se pudo cargar la página. Intenta recargar.');
             }
         });
 
-        // 7. Función para manejar la solicitud de devolución (sin cambios)
-        async function handleReturnRequest(event) {
-            const button = event.target;
-            const purchaseId = button.dataset.id;
-            
-            if (!confirm('¿Estás seguro de que quieres solicitar la devolución de esta orden?')) {
-                return;
-            }
-
+        // Manejo de devolución (usa modal de confirmación)
+        async function performReturnRequest(purchaseId, button) {
+            if (!purchaseId) return showModal('Error', 'ID de compra inválido.');
             button.disabled = true;
+            const originalText = button.textContent;
             button.textContent = 'Procesando...';
-
             try {
                 const response = await fetch('/request-return', {
                     method: 'POST',
@@ -311,34 +400,43 @@
                     body: JSON.stringify({ purchaseId })
                 });
                 const data = await response.json();
-
-                if (data.success) {
-                    alert('Solicitud de devolución enviada. Recibirás un correo de confirmación.');
-                    
-                    // Actualizar todas las filas relacionadas con esta compra
-                    const allButtons = document.querySelectorAll(`.btn-return[data-id="${purchaseId}"]`);
-                    allButtons.forEach(btn => {
+                if (data && data.success) {
+                    showModal('Solicitud Enviada', 'Recibirás un correo de confirmación.');
+                    // Actualizar todas las filas relacionadas
+                    document.querySelectorAll(`.btn-return[data-id="${purchaseId}"]`).forEach(btn => {
                         const row = btn.closest('tr');
-                        row.querySelector('td:nth-child(5)').textContent = 'DEVOLUCIÓN SOLICITADA';
-                        row.querySelector('td:nth-child(5)').classList.add('status-returned');
-                        btn.textContent = 'Solicitada';
-                        btn.disabled = true;
-
-                        const viewButton = row.querySelector('.btn-view-content');
-                        if (viewButton) {
-                            viewButton.style.display = 'none';
+                        if (row) {
+                            const statusCell = row.querySelector('td:nth-child(5)');
+                            if (statusCell) {
+                                statusCell.textContent = 'DEVOLUCIÓN SOLICITADA';
+                                statusCell.classList.add('status-returned');
+                            }
+                            btn.textContent = 'Solicitada';
+                            btn.disabled = true;
+                            const viewBtn = row.querySelector('.btn-view-content');
+                            if (viewBtn) viewBtn.style.display = 'none';
                         }
                     });
                 } else {
-                    alert('Error: ' + data.message);
+                    showModal('Error', 'Error: ' + (data && data.message ? data.message : 'Respuesta inválida del servidor.'));
                     button.disabled = false;
-                    button.textContent = 'Solicitar Devolución';
+                    button.textContent = originalText;
                 }
-            } catch (error) {
-                alert('Ocurrió un error de conexión.');
+            } catch (err) {
+                console.error('Error en request-return:', err);
+                showModal('Error de Conexión', 'No se pudo conectar con el servidor.');
                 button.disabled = false;
-                button.textContent = 'Solicitar Devolución';
+                button.textContent = originalText;
             }
+        }
+
+        function handleReturnRequest(btnElement) {
+            const purchaseId = btnElement.dataset.id;
+            showModal(
+                'Confirmar Devolución',
+                '¿Estás seguro de que quieres solicitar la devolución de esta orden?',
+                () => performReturnRequest(purchaseId, btnElement)
+            );
         }
     </script>
 </body>
