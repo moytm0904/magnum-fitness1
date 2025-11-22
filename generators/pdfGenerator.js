@@ -1,4 +1,6 @@
 const PDFDocument = require('pdfkit');
+// IMPORTANTE: Asegúrate de instalar esta librería: npm i @NumeroALetras/numero-a-letras
+const { numeroALetras } = require('@NumeroALetras/numero-a-letras');
 
 function generateInvoicePdfBuffer(data) {
     return new Promise((resolve, reject) => {
@@ -14,6 +16,8 @@ function generateInvoicePdfBuffer(data) {
             const fontColor = '#333333';
             const boldFont = 'Helvetica-Bold';
             const normalFont = 'Helvetica';
+            const sectionBgColor = '#f8f9fa'; // Color de fondo para las nuevas secciones
+            const sectionBorderColor = '#dee2e6'; // Color de borde para las nuevas secciones
 
             // --- DATOS DE MONEDA ---
             const currency = data.Moneda || 'MXN';
@@ -67,8 +71,6 @@ function generateInvoicePdfBuffer(data) {
 
             // --- Cálculos ---
             const totalCompra = parseFloat(data.total || data.totalCompra || 0);
-            const totalEnPesos = (totalCompra * exchangeRateVal).toFixed(2);
-            
             // Desglose de impuestos (sobre el total en divisa)
             const subtotal = totalCompra / 1.16;
             const iva = totalCompra - subtotal;
@@ -104,35 +106,6 @@ function generateInvoicePdfBuffer(data) {
             // --- Sección de Totales y Moneda ---
             let finalY = rowY + 40;
             
-            // -- Izquierda: Datos de Moneda --
-            doc.font(boldFont).fontSize(9).text('Forma de Pago:', 40, finalY, { continued: true })
-                .font(normalFont).text(` ${data.formaPagoNombre || data.formaPago}`);
-            
-            doc.font(boldFont).text('Método de Pago:', 40, doc.y, { continued: true })
-                .font(normalFont).text(` ${data.metodoPagoNombre || data.metodoPago}`);
-
-            doc.moveDown(0.5);
-            doc.font(boldFont).text('Moneda:', 40, doc.y, { continued: true })
-                .font(normalFont).text(` ${currency}`);
-
-            if (currency !== 'MXN') {
-                doc.moveDown(0.2);
-                doc.font(boldFont).text('Tipo de Cambio:', 40, doc.y, { continued: true })
-                   .font(normalFont).text(` 1 ${currency} = $${exchangeRateText} MXN`);
-                
-                // --- NUEVO: Total Pagado en Divisa ---
-                doc.moveDown(0.2);
-                doc.fillColor(fontColor); // Asegurar color negro
-                doc.font(boldFont).text('Total Pagado:', 40, doc.y, { continued: true })
-                   .font(normalFont).text(` $${totalCompra.toFixed(2)} ${currency}`);
-                // -------------------------------------
-
-                doc.moveDown(0.2);
-                doc.fillColor('#555555'); // Gris para diferenciar el equivalente
-                doc.font(boldFont).text('Equivalente en Pesos:', 40, doc.y, { continued: true })
-                   .font(normalFont).text(` $${totalEnPesos} MXN`);
-            }
-
             // -- Derecha: Totales Numéricos --
             const totalsX = 380;
             doc.fillColor(fontColor); // Reset color a negro
@@ -150,10 +123,105 @@ function generateInvoicePdfBuffer(data) {
                 .text('TOTAL PAGADO:', totalsX, doc.y)
                 .text(`$${totalCompra.toFixed(2)} ${currency}`, { align: 'right' });
 
+            doc.y += 20; // Espacio después de los totales
+
+            // ======================================================================
+            // === NUEVAS SECCIONES (Importe con letra, Moneda, Pago y CFDI Rel.) ===
+            // ======================================================================
+            
+            let currentY = doc.y;
+            
+            // --- 1. Sección de Importe con Letra y Datos de Pago ---
+            // Preparamos la moneda para la conversión a letras
+            const letraCurrency = currency === 'MXN' ? 'PESOS MEXICANOS' : currency;
+            const importeConLetra = numeroALetras(totalCompra, {
+                plural: letraCurrency,
+                singular: letraCurrency.replace('S', ''), // Intento simple de singularizar
+                centPlural: 'CENTAVOS',
+                centSingular: 'CENTAVO'
+            });
+
+            // Dibujar fondo y borde del bloque
+            doc.rect(40, currentY, doc.page.width - 80, 65)
+               .fillAndStroke(sectionBgColor, sectionBorderColor);
+            
+            doc.fillColor(fontColor).fontSize(9);
+            let textY = currentY + 10;
+            let col1X = 50;
+            let col2X = 300;
+
+            // Fila 1: Importe con letra
+            doc.font(boldFont).text('Importe con letra:', col1X, textY);
+            doc.font(normalFont).text(`${importeConLetra} ${currency === 'MXN' ? 'M.N.' : ''}`, col1X + 100, textY, { width: 380 });
+            
+            textY += 20;
+
+            // Fila 2: Moneda y Tipo de Cambio
+            doc.font(boldFont).text('Moneda:', col1X, textY);
+            doc.font(normalFont).text(currency, col1X + 50, textY);
+            
+            if (currency !== 'MXN') {
+                doc.font(boldFont).text('Tipo de Cambio:', col2X, textY);
+                doc.font(normalFont).text(`1 ${currency} = $${exchangeRateText} MXN`, col2X + 90, textY);
+            }
+            
+            textY += 15;
+
+            // Fila 3: Método de Pago y Forma de Pago
+            doc.font(boldFont).text('Método de Pago:', col1X, textY);
+            // Concatenamos código y nombre para que se vea completo (ej: PUE - Pago en una sola exhibición)
+            const metodoPagoCompleto = (data.metodoPago || '') + ' - ' + (data.metodoPagoNombre || '');
+            doc.font(normalFont).text(metodoPagoCompleto, col1X + 90, textY);
+
+            doc.font(boldFont).text('Forma de Pago:', col2X, textY);
+            const formaPagoCompleta = (data.formaPago || '') + ' - ' + (data.formaPagoNombre || '');
+            doc.font(normalFont).text(formaPagoCompleta, col2X + 90, textY);
+
+
+            // --- 2. Sección de CFDI Relacionado ---
+            currentY += 75; // Mover hacia abajo para la siguiente sección
+            
+            // Dibujar fondo y borde del bloque
+            doc.rect(40, currentY, doc.page.width - 80, 45)
+               .fillAndStroke(sectionBgColor, sectionBorderColor);
+
+            // Título de la sección
+            doc.fillColor(primaryColor).font(boldFont).fontSize(10)
+               .text('CFDI Relacionado', 50, currentY + 5);
+            
+            doc.fillColor(fontColor).fontSize(9);
+            textY = currentY + 22;
+
+            // Fila 1: Tipo de relación y CFDI
+            // NOTA: Estos datos suelen estar vacíos en una factura inicial, se dejan como placeholders.
+            doc.font(boldFont).text('Tipo de relación:', col1X, textY);
+            doc.font(normalFont).text('', col1X + 90, textY); // Valor vacío por ahora
+            
+            doc.font(boldFont).text('CFDI Relacionado:', col2X, textY);
+            doc.font(normalFont).text('', col2X + 95, textY); // Valor vacío por ahora
+
+            // ======================================================================
+            // ======================================================================
+
             // --- Footer ---
-            const footerY = doc.page.height - 100;
+            // Calculamos la posición Y del footer para que no se solape con las nuevas secciones
+            // Nos aseguramos de que haya al menos 150px desde abajo, o más si las secciones nuevas empujan el contenido.
+            const footerY = Math.max(doc.page.height - 150, currentY + 60); 
+
             doc.fillColor('#AAAAAA').fontSize(7);
-            doc.text('Este documento es una representación impresa de un CFDI.', 40, footerY, { align: 'center', width: doc.page.width - 80 });
+            
+            // Sello Digital
+            doc.font(boldFont).text('Sello Digital del CFDI:', 40, footerY);
+            doc.font(normalFont).text('||1.1|UUID|FECHA|SELLO_DIGITAL_MUY_LARGO_DEL_SAT_QUE_VA_AQUI||', { width: 500 });
+            
+            doc.moveDown(0.5);
+            
+            // Sello SAT
+            doc.font(boldFont).text('Sello del SAT:', 40, doc.y);
+            doc.font(normalFont).text('||SELLO_DEL_SAT_MUY_LARGO_QUE_VA_AQUI_PARA_VALIDAR||', { width: 500 });
+
+            doc.moveDown(1);
+            doc.fillColor(fontColor).fontSize(8).text('Este documento es una representación impresa de un CFDI.', 40, doc.y, { align: 'center', width: doc.page.width - 80 });
 
             doc.end();
         } catch (err) {
