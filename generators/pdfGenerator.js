@@ -120,15 +120,22 @@ function generateInvoicePdfBuffer(data) {
                 doc.font(boldFont).text('Tipo de Cambio:', 40, doc.y, { continued: true })
                    .font(normalFont).text(` 1 ${currency} = $${exchangeRateText} MXN`);
                 
+                // --- NUEVO: Total Pagado en Divisa ---
                 doc.moveDown(0.2);
-                doc.fillColor('#555555');
+                doc.fillColor(fontColor); // Asegurar color negro
+                doc.font(boldFont).text('Total Pagado:', 40, doc.y, { continued: true })
+                   .font(normalFont).text(` $${totalCompra.toFixed(2)} ${currency}`);
+                // -------------------------------------
+
+                doc.moveDown(0.2);
+                doc.fillColor('#555555'); // Gris para diferenciar el equivalente
                 doc.font(boldFont).text('Equivalente en Pesos:', 40, doc.y, { continued: true })
                    .font(normalFont).text(` $${totalEnPesos} MXN`);
             }
 
             // -- Derecha: Totales Numéricos --
             const totalsX = 380;
-            doc.fillColor(fontColor); // Reset color
+            doc.fillColor(fontColor); // Reset color a negro
             
             // Subtotal e IVA en la moneda de pago
             doc.font(normalFont).fontSize(10)
