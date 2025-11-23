@@ -7,8 +7,8 @@ function generateXML(data) {
     // Estos datos ya vienen calculados correctamente desde server.js
     const currency = data.Moneda || 'MXN';
     
-    // El SAT requiere que si es MXN, el TipoCambio sea "1" (o se omita), 
-    // y si es USD, sea el valor real (ej. 20.5000).
+    // El SAT requiere que si es MXN, el TipoCambio se omita.
+    // Si es otra moneda, se debe incluir el valor del día (ej. 18.5000).
     const exchangeRate = data.TipoCambio || '1';
     
     // Construir el atributo condicionalmente
@@ -18,8 +18,8 @@ function generateXML(data) {
     // ==========================================================
     // === 2. CÁLCULOS DE IMPUESTOS ===
     // ==========================================================
-    // IMPORTANTE: Todos estos montos están en la moneda de la factura (ej. USD)
-    // El XML NO se hace en pesos si la moneda es USD, se hace en USD.
+    // IMPORTANTE: Estos montos son en la moneda de la factura (ej. 50.00 USD)
+    // El XML se llena con los valores de la divisa extranjera, no la conversión a pesos.
     const totalConIva = parseFloat(data.totalCompra || data.total || 0);
     
     // Desglosar IVA (16%)
