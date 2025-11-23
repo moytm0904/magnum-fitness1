@@ -91,76 +91,161 @@ function generateInvoicePdfBuffer(data) {
             doc.text(`Folio Fiscal (UUID): ${Date.now()}-${Math.floor(Math.random() * 1000000)}`, { align: 'right' });
             doc.text(`Fecha: ${new Date().toISOString().split('T')[0]}`, { align: 'right' });
             
-            try {  doc.image('icono_1.png', 40, 5, { fit: [90, 90] }); } catch (e) {}
+            try { doc.image('icono_1.png', 40, 5, { fit: [90, 90] });  } catch (e) {}
 
             doc.y = 120;
 
-            function drawSectionWithColumns(title, left, right) {
-                doc.fillColor(fontColor).font(boldFont).fontSize(11).text(title, 40);
+            // --- Función para dibujar secciones (Ajustada al estilo de tu imagen) ---
+            function drawSectionWithColumns(title, dataLeft, dataRight) {
+                // Título de la sección
+                doc.fillColor(fontColor).font(boldFont).fontSize(10).text(title.toUpperCase(), 40);
+                
+                // Línea azul debajo del título
                 doc.moveTo(40, doc.y).lineTo(doc.page.width - 40, doc.y).stroke(primaryColor);
                 doc.moveDown(0.5);
+                
                 const startY = doc.y;
-                doc.font(normalFont).fontSize(9).text(left, 50, startY, { width: 250 });
-                doc.text(right, 320, startY, { width: 250 });
-                doc.y = startY + 45; 
+                const leftColX = 45;
+                const rightColX = 310; // Segunda columna alineada a la derecha del centro
+                
+                doc.font(normalFont).fontSize(8.5);
+
+                // Renderizar datos izquierda
+                let currentYLeft = startY;
+                dataLeft.forEach(item => {
+                    doc.text(`${item.label} ${item.value}`, leftColX, currentYLeft);
+                    currentYLeft += 12;
+                });
+
+                // Renderizar datos derecha
+                let currentYRight = startY;
+                dataRight.forEach(item => {
+                    doc.text(`${item.label} ${item.value}`, rightColX, currentYRight);
+                    currentYRight += 12;
+                });
+
+                // Mover cursor al final de la sección más larga
+                doc.y = Math.max(currentYLeft, currentYRight) + 15;
             }
 
-            drawSectionWithColumns('DATOS DEL EMISOR', `Nombre: Magnum Fitness S.A. de C.V.\nRFC: MAGM250101M99\nRégimen: 601 - General de Ley PM`, `Lugar de Expedición: 62740`);
-            drawSectionWithColumns('DATOS DEL RECEPTOR', `Nombre: ${data.razonSocial || 'SIN NOMBRE'}\nRFC: ${data.rfc || 'XAXX010101000'}`, `Régimen: ${data.regimenFiscalNombre || data.regimenFiscal}\nUso CFDI: ${data.usoCFDINombre || data.usoCFDI}`);
+            // --- DATOS DEL EMISOR ---
+            drawSectionWithColumns(
+                'DATOS DEL EMISOR',
+                [
+                    { label: 'Nombre:', value: 'Magnum Fitness S.A. de C.V.' },
+                    { label: 'RFC:', value: 'MAGM250101M99' }
+                ],
+                [
+                    { label: 'Régimen Fiscal:', value: '601 - General de Ley Personas Morales' },
+                    { label: 'Lugar de Expedición:', value: '62740' }
+                ]
+            );
 
-            // --- Cálculos ---
+            // --- DATOS DEL RECEPTOR ---
+            drawSectionWithColumns(
+                'DATOS DEL RECEPTOR',
+                [
+                    { label: 'Nombre:', value: (data.razonSocial || 'SIN NOMBRE').toUpperCase() },
+                    { label: 'RFC:', value: (data.rfc || 'XAXX010101000').toUpperCase() }
+                ],
+                [
+                    { label: 'Régimen Fiscal:', value: data.regimenFiscalNombre || data.regimenFiscal },
+                    // En tu imagen "Empresariales" estaba en una segunda línea, aquí se ajustará solo
+                    { label: 'Uso de CFDI:', value: data.usoCFDINombre || data.usoCFDI }
+                ]
+            );
+            
+            // Añadimos un pequeño espacio extra antes de conceptos
+            doc.moveDown(0.5);
+            doc.fillColor(fontColor).font(boldFont).fontSize(10).text('CONCEPTOS', 40);
+            doc.moveDown(0.2);
+
+            // --- CÁLCULOS ---
             const totalCompra = parseFloat(data.total || data.totalCompra || 0);
             const totalEnPesos = (totalCompra * exchangeRateVal).toFixed(2);
             const subtotal = totalCompra / 1.16;
             const iva = totalCompra - subtotal;
 
-            // --- Tabla Conceptos ---
-            doc.font(boldFont).fontSize(11).text('CONCEPTOS', 40);
-            const tableTop = doc.y + 5;
-            const headers = ['Cant', 'Unidad', 'Descripción', 'Valor Unit.', 'Importe'];
-            const colWidths = [40, 50, 220, 80, 80]; 
+            // --- TABLA DE CONCEPTOS (Estilo Imagen) ---
+            const tableTop = doc.y;
+            // Columnas: Clave Prod, Cant, Unidad, Descripción, Valor Unit., IVA, Importe
+            const headers = ['Clave Prod', 'Cant', 'Unidad', 'Descripción', 'Valor Unit.', 'IVA', 'Importe'];
+            // Ajuste de anchos para coincidir mejor con la imagen
+            const colWidths = [60, 35, 45, 200, 70, 40, 70]; 
             let currentX = 40;
-            doc.rect(currentX, tableTop, doc.page.width - 80, 20).fill(primaryColor);
+            
+            // Fondo azul del encabezado
+            doc.rect(currentX, tableTop, doc.page.width - 80, 18).fill(primaryColor);
             doc.fillColor('#FFFFFF').fontSize(8).font(boldFont);
-            headers.forEach((h, i) => { doc.text(h, currentX + 5, tableTop + 6, { width: colWidths[i] - 10 }); currentX += colWidths[i]; });
+            
+            // Texto del encabezado
+            headers.forEach((h, i) => { 
+                doc.text(h, currentX + 5, tableTop + 5, { width: colWidths[i] - 10 }); 
+                currentX += colWidths[i]; 
+            });
 
-            const rowY = tableTop + 25;
+            const rowY = tableTop + 22;
             currentX = 40;
-            const desc = (data.productName || 'Servicios').substring(0, 60);
-            const rowData = ['1', 'E48', desc, `$${subtotal.toFixed(2)}`, `$${subtotal.toFixed(2)}`];
+            const desc = (data.productName || 'Producto/Servicio').substring(0, 75); // Descripción un poco más larga permitida
+            
+            // Datos de la fila
+            const rowData = [
+                '84111506', 
+                '1', 
+                'E48', 
+                desc, 
+                `$${subtotal.toFixed(2)}`, 
+                '16%', 
+                `$${subtotal.toFixed(2)}`
+            ];
+            
             doc.fillColor(fontColor).fontSize(8).font(normalFont);
-            rowData.forEach((cell, i) => { doc.text(cell, currentX + 5, rowY, { width: colWidths[i] - 10 }); currentX += colWidths[i]; });
+            rowData.forEach((cell, i) => { 
+                doc.text(cell, currentX + 5, rowY, { width: colWidths[i] - 10 }); 
+                currentX += colWidths[i]; 
+            });
 
-            // --- Totales Numéricos ---
-            let finalY = rowY + 40;
+            // --- TOTALES ---
+            let finalY = rowY + 35;
             const totalsX = 380;
-            doc.fillColor(fontColor).font(normalFont).fontSize(10)
-                .text('Subtotal:', totalsX, finalY).text(`$${subtotal.toFixed(2)}`, { align: 'right' });
-            doc.text('IVA (16%):', totalsX, doc.y).text(`$${iva.toFixed(2)}`, { align: 'right' });
-            doc.moveTo(totalsX - 10, doc.y + 5).lineTo(doc.page.width - 40, doc.y + 5).stroke(primaryColor);
+            
+            // Línea separadora de totales
+            doc.moveTo(totalsX - 10, finalY).lineTo(doc.page.width - 40, finalY).stroke(primaryColor);
             doc.moveDown(0.5);
             
-            // Total Principal
-            doc.font(boldFont).fontSize(12).fillColor(primaryColor)
-                .text('TOTAL:', totalsX, doc.y).text(`$${totalCompra.toFixed(2)} ${currency}`, { align: 'right' });
+            // Subtotal e IVA
+            doc.fillColor(fontColor).font(normalFont).fontSize(9);
+            doc.text('Subtotal:', totalsX, finalY + 5);
+            doc.text(`$${subtotal.toFixed(2)}`, totalsX, finalY + 5, { align: 'right' });
+            
+            doc.text('IVA (16%):', totalsX, finalY + 18);
+            doc.text(`$${iva.toFixed(2)}`, totalsX, finalY + 18, { align: 'right' });
+            
+            // Total Final
+            doc.fillColor(primaryColor).font(boldFont).fontSize(11);
+            doc.text('TOTAL:', totalsX, finalY + 35);
+            doc.text(`$${totalCompra.toFixed(2)} ${currency}`, totalsX, finalY + 35, { align: 'right' });
 
-            doc.y += 25;
+            doc.y = finalY + 60; // Mover cursor debajo de los totales
 
             // ======================================================================
-            // === BLOQUE DE DATOS DE PAGO Y MONEDA (DISEÑO LIMPIO) ===
+            // === SECCIÓN DE DATOS DE PAGO Y MONEDA (Reacomodada) ===
             // ======================================================================
             let currentY = doc.y;
             const importeConLetra = numeroALetras(totalCompra, currency);
+            
+            // Altura de la caja gris
             const boxHeight = currency !== 'MXN' ? 110 : 90; 
 
+            // Fondo gris claro con borde suave
             doc.rect(40, currentY, doc.page.width - 80, boxHeight).fillAndStroke(sectionBgColor, sectionBorderColor);
-            doc.fillColor(fontColor).fontSize(9);
+            doc.fillColor(fontColor).fontSize(8.5);
             
             let textY = currentY + 10;
-            let col1X = 50;  
+            let col1X = 50; 
             let col2X = 330; 
 
-
+            // 2. Moneda y Tipo de Cambio
             doc.font(boldFont).text('Moneda:', col1X, textY);
             doc.font(normalFont).text(currency, col1X + 50, textY);
 
@@ -168,24 +253,33 @@ function generateInvoicePdfBuffer(data) {
                 doc.font(boldFont).text('Tipo de Cambio:', col2X, textY);
                 doc.font(normalFont).text(`1 ${currency} = $${exchangeRateText} MXN`, col2X + 90, textY);
             }
-            textY += 18; 
+            
+            textY += 15;
 
+            // 3. Total Pagado y Equivalente (Solo si es moneda extranjera)
             if (currency !== 'MXN') {
                 doc.font(boldFont).text('Total Pagado:', col1X, textY);
                 doc.font(normalFont).text(`$${totalCompra.toFixed(2)} ${currency}`, col1X + 80, textY);
 
                 doc.font(boldFont).text('Equivalente:', col2X, textY);
                 doc.font(normalFont).text(`$${totalEnPesos} MXN`, col2X + 90, textY);
-                textY += 18;
+                textY += 15;
             }
 
+            // 4. Método y Forma de Pago (En filas separadas para evitar superposición)
+            // Fila: Método
+            doc.font(boldFont).text('Método de Pago:', col1X, textY);
             const metodoPagoCompleto = `${data.metodoPago} - ${data.metodoPagoNombre || ''}`;
-            doc.font(boldFont).text('Método Pago:', col1X, textY);
-            doc.font(normalFont).text(metodoPagoCompleto, col1X + 80, textY, { width: 190, ellipsis: true });
-
+            doc.font(normalFont).text(metodoPagoCompleto, col1X + 90, textY);
+            
+            // Fila: Forma (Bajamos una línea si está muy apretado o la ponemos a la derecha si cabe)
+            // Para asegurar que quede bien, en este diseño la pondremos a la derecha en la misma línea, 
+            // pero con cuidado del espacio.
+            doc.font(boldFont).text('Forma de Pago:', col2X, textY);
             const formaPagoCompleta = `${data.formaPago} - ${data.formaPagoNombre || ''}`;
-            doc.font(boldFont).text('Forma Pago:', col2X, textY);
-            doc.font(normalFont).text(formaPagoCompleta, col2X + 90, textY, { width: 150, ellipsis: true });
+            // Cortamos el texto si es demasiado largo para que no se encime
+            doc.font(normalFont).text(formaPagoCompleta.substring(0, 35), col2X + 90, textY);
+
 
             // ======================================================================
             // === SECCIÓN DE SELLOS DIGITALES Y QR (DISEÑO REAL) ===
