@@ -91,7 +91,7 @@ function generateInvoicePdfBuffer(data) {
             doc.text(`Folio Fiscal (UUID): ${Date.now()}-${Math.floor(Math.random() * 1000000)}`, { align: 'right' });
             doc.text(`Fecha: ${new Date().toISOString().split('T')[0]}`, { align: 'right' });
             
-            try { /* doc.image('icono_1.png', 40, 5, { fit: [90, 90] }); */ } catch (e) {}
+            try { doc.image('icono_1.png', 40, 5, { fit: [90, 90] }); } catch (e) {}
 
             doc.y = 120;
 
