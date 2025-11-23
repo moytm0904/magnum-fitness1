@@ -298,17 +298,17 @@ function main() {
     }
 
     // ==========================================================
-    // === 7. CARGA DINÁMICA DE PAYPAL (SOLUCIÓN DE ERRORES) ===
+    // === 7. CARGA DINÁMICA DE PAYPAL (SOLUCIÓN PAGO MONEDA) ===
     // ==========================================================
     function loadPayPalScript(currency, onReadyCallback) {
         // 1. Si la moneda es la misma que ya tenemos cargada Y el objeto global existe
-        if (currentPayPalCurrency === currency && window.paypal) {
+        if (isPayPalScriptLoaded && currentPayPalCurrency === currency && window.paypal) {
             onReadyCallback();
             return;
         }
 
         // 2. Limpieza profunda si cambiamos de moneda o hubo error
-        // Eliminamos el script anterior del DOM
+        // Eliminamos el script anterior del DOM para que no haya conflictos
         const existingScript = document.querySelector('script[src*="paypal.com/sdk/js"]');
         if (existingScript) {
             existingScript.parentNode.removeChild(existingScript);
@@ -320,20 +320,21 @@ function main() {
         if(checkoutContainer) checkoutContainer.innerHTML = '<div class="text-center p-3"><span class="spinner-border spinner-border-sm text-warning"></span> Cargando método de pago...</div>';
         if(paymentStatusEl) paymentStatusEl.innerHTML = '';
 
-        // 3. Crear y cargar el nuevo script
+        // 3. Crear y cargar el nuevo script con la moneda correcta
         const script = document.createElement('script');
         script.src = `https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=${currency}`;
         script.async = true;
         
         script.onload = () => {
             console.log(`✅ PayPal SDK cargado para ${currency}`);
+            isPayPalScriptLoaded = true;
             currentPayPalCurrency = currency;
             onReadyCallback();
         };
         
         script.onerror = () => {
             console.error("Error cargando PayPal SDK");
-            if(checkoutContainer) checkoutContainer.innerHTML = '<p class="text-center text-danger">Error de conexión con PayPal. Recarga la página e intenta de nuevo.</p>';
+            if(checkoutContainer) checkoutContainer.innerHTML = '<p class="text-center text-danger">Error de conexión con PayPal. Recarga la página.</p>';
         };
         
         document.body.appendChild(script);
@@ -345,7 +346,7 @@ function main() {
     function renderCheckoutSection(sessionData) {
         if(!checkoutContainer) return;
         
-        // IMPORTANTE: Limpiar el contenedor para evitar "zoid: request listener exists"
+        // IMPORTANTE: Limpiar el contenedor para evitar conflictos de botones duplicados
         checkoutContainer.innerHTML = ''; 
         if(paymentStatusEl) paymentStatusEl.innerHTML = '';
         
@@ -395,8 +396,8 @@ function main() {
                                     cardName: payerName,
                                     paypalTransactionId: captureData.id,
                                     productName: productNames,
-                                    price: totalConverted.toFixed(2),
-                                    currency: userCurrency
+                                    price: totalConverted.toFixed(2), // GUARDAR PRECIO PAGADO EN LA MONEDA
+                                    currency: userCurrency // GUARDAR MONEDA
                                 };
                                 return fetch('/process-purchase', { 
                                     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(purchaseData) 
@@ -419,12 +420,12 @@ function main() {
                         },
                         onError: (err) => {
                             console.error("PayPal Window Error:", err);
-                            paymentStatusEl.innerHTML = `<div class="alert alert-warning small">El pago no se completó. Intenta de nuevo.</div>`;
+                            paymentStatusEl.innerHTML = `<div class="alert alert-warning small">El pago no se completó.</div>`;
                         }
                     }).render(checkoutContainer);
                 } catch(e) {
                      console.error("Error al renderizar botón PayPal:", e);
-                     // Si falla el renderizado, intentamos recargar el script en el próximo intento
+                     // Si falla el renderizado, forzamos recarga la próxima vez
                      currentPayPalCurrency = ''; 
                 }
             } else {
