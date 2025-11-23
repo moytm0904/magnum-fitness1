@@ -684,10 +684,17 @@ function main() {
         const btn = document.getElementById('product-detail-add-btn');
         btn.dataset.name = p.name; btn.dataset.type = p.category; btn.dataset.price = parseFloat(p.price);
         fetchAndRenderReviews(id);
+        
         const form = document.getElementById('reviewForm');
-        if(currentUserEmail && userPurchases.some(x => (x.productName||'').includes(p.name) && x.status==='COMPLETADO')) {
+        
+        // CORRECCIÓN: Buscar tanto 'productName' como 'productname'
+        if(currentUserEmail && userPurchases.some(x => {
+             const pName = x.productName || x.productname || '';
+             return pName.includes(p.name) && x.status==='COMPLETADO';
+        })) {
             form.style.display='block'; form.onsubmit=(e)=>handleReviewSubmit(e, id);
         } else form.style.display='none';
+        
         productDetailModal.show();
     }
 
