@@ -14,10 +14,7 @@ function main() {
     let userCurrency = 'MXN';
     let conversionRate = 1;
     
-    // --- CONFIGURACIÓN DE PAYPAL (NUEVO) ---
-    const PAYPAL_CLIENT_ID = 'AT16Qo7wfSCrBn9YBDsi-GfsTTI4ce411w4BM2GMNNM-iaVRajGBBC_VfvQFiNbiYDk4IzlJ1sXgigLc';
-    let isPayPalScriptLoaded = false; 
-    let currentPayPalCurrency = '';
+    
 
     // Elementos del DOM
     let cartCountEl, cartItemsContainer, cartTotalEl, checkoutContainer, paymentStatusEl, cartModalEl, cartModal, dynamicNavLinks;
