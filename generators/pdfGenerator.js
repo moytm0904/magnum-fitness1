@@ -1,7 +1,7 @@
 const PDFDocument = require('pdfkit');
 
 // ==========================================================
-// === 1. FUNCIÓN INTERNA: NÚMERO A LETRAS (Sin dependencias) ===
+// === 1. FUNCIÓN INTERNA: NÚMERO A LETRAS ===
 // ==========================================================
 function numeroALetras(amount, currency) {
     const currencyMap = {
@@ -54,7 +54,7 @@ function numeroALetras(amount, currency) {
 }
 
 // ==========================================================
-// === 2. GENERADOR DE PDF (BUFFER) ===
+// === 2. GENERADOR DE PDF ===
 // ==========================================================
 function generateInvoicePdfBuffer(data) {
     return new Promise((resolve, reject) => {
@@ -78,7 +78,6 @@ function generateInvoicePdfBuffer(data) {
             let exchangeRateVal = parseFloat(data.TipoCambio);
             if (isNaN(exchangeRateVal)) exchangeRateVal = 1;
 
-            // Corregir tasa invertida visualmente (ej: mostrar 18.50 en lugar de 0.05)
             if ((currency === 'USD' || currency === 'EUR' || currency === 'GBP' || currency === 'CAD') && exchangeRateVal < 1) {
                 exchangeRateVal = 1 / exchangeRateVal;
             }
@@ -92,7 +91,6 @@ function generateInvoicePdfBuffer(data) {
             doc.text(`Folio Fiscal (UUID): ${Date.now()}-${Math.floor(Math.random() * 1000000)}`, { align: 'right' });
             doc.text(`Fecha: ${new Date().toISOString().split('T')[0]}`, { align: 'right' });
             
-            // Logo (Opcional - descomentar si tienes la imagen)
             try { /* doc.image('icono_1.png', 40, 5, { fit: [90, 90] }); */ } catch (e) {}
 
             doc.y = 120;
@@ -142,30 +140,30 @@ function generateInvoicePdfBuffer(data) {
             doc.moveTo(totalsX - 10, doc.y + 5).lineTo(doc.page.width - 40, doc.y + 5).stroke(primaryColor);
             doc.moveDown(0.5);
             
-            // Total Principal (en la moneda de pago)
+            // Total Principal
             doc.font(boldFont).fontSize(12).fillColor(primaryColor)
                 .text('TOTAL:', totalsX, doc.y).text(`$${totalCompra.toFixed(2)} ${currency}`, { align: 'right' });
 
             doc.y += 25;
 
             // ======================================================================
-            // === BLOQUE DE DATOS DE PAGO Y MONEDA (Actualizado) ===
+            // === BLOQUE DE DATOS DE PAGO Y MONEDA (DISEÑO LIMPIO) ===
             // ======================================================================
             let currentY = doc.y;
             const importeConLetra = numeroALetras(totalCompra, currency);
             
-            // Altura dinámica del bloque gris
-            // Si no es MXN, necesitamos más espacio para mostrar las líneas extra
-            const boxHeight = currency !== 'MXN' ? 95 : 70; 
+            // Aumentamos la altura de la caja para que quepa todo holgadamente
+            const boxHeight = currency !== 'MXN' ? 100 : 75; 
 
             doc.rect(40, currentY, doc.page.width - 80, boxHeight).fillAndStroke(sectionBgColor, sectionBorderColor);
             doc.fillColor(fontColor).fontSize(9);
             
             let textY = currentY + 10;
-            let col1X = 50; // Columna Izquierda
-            let col2X = 300; // Columna Derecha
+            // Ajuste de columnas para evitar solapamiento
+            let col1X = 50;  
+            let col2X = 330; // Movido más a la derecha (antes 300)
 
-            // Fila 1: Importe con letra
+            // Fila 1: Importe con letra (Ancho completo)
             doc.font(boldFont).text('Importe con letra:', col1X, textY);
             doc.font(normalFont).text(importeConLetra, col1X + 100, textY, { width: 380 });
             textY += 25;
@@ -178,26 +176,26 @@ function generateInvoicePdfBuffer(data) {
                 doc.font(boldFont).text('Tipo de Cambio:', col2X, textY);
                 doc.font(normalFont).text(`1 ${currency} = $${exchangeRateText} MXN`, col2X + 90, textY);
             }
-            textY += 15;
+            textY += 18; // Espacio vertical extra
 
-            // Fila 3: Total Pagado y Equivalente (SOLO SI NO ES MXN)
+            // Fila 3: Total Pagado y Equivalente
             if (currency !== 'MXN') {
-                // --- CAMBIO SOLICITADO: Agregar "Total Pagado" en divisa ---
                 doc.font(boldFont).text('Total Pagado:', col1X, textY);
                 doc.font(normalFont).text(`$${totalCompra.toFixed(2)} ${currency}`, col1X + 80, textY);
-                // ----------------------------------------------------------
 
-                doc.font(boldFont).text('Equivalente en Pesos:', col2X, textY);
-                doc.font(normalFont).text(`$${totalEnPesos} MXN`, col2X + 110, textY);
-                textY += 15;
+                doc.font(boldFont).text('Equivalente:', col2X, textY);
+                doc.font(normalFont).text(`$${totalEnPesos} MXN`, col2X + 90, textY);
+                textY += 18;
             }
 
-            // Fila 4: Métodos de Pago
-            doc.font(boldFont).text('Método de Pago:', col1X, textY);
-            doc.font(normalFont).text(`${data.metodoPago} - ${data.metodoPagoNombre || ''}`, col1X + 90, textY);
+            // Fila 4: Métodos de Pago (Con corte de texto si es muy largo)
+            const metodoPagoCompleto = `${data.metodoPago} - ${data.metodoPagoNombre || ''}`;
+            doc.font(boldFont).text('Método Pago:', col1X, textY);
+            doc.font(normalFont).text(metodoPagoCompleto, col1X + 80, textY, { width: 190, ellipsis: true });
 
-            doc.font(boldFont).text('Forma de Pago:', col2X, textY);
-            doc.font(normalFont).text(`${data.formaPago} - ${data.formaPagoNombre || ''}`, col2X + 90, textY);
+            const formaPagoCompleta = `${data.formaPago} - ${data.formaPagoNombre || ''}`;
+            doc.font(boldFont).text('Forma Pago:', col2X, textY);
+            doc.font(normalFont).text(formaPagoCompleta, col2X + 90, textY, { width: 150, ellipsis: true });
 
             // --- CFDI Relacionado ---
             currentY += boxHeight + 10;
