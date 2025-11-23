@@ -91,7 +91,7 @@ function generateInvoicePdfBuffer(data) {
             doc.text(`Folio Fiscal (UUID): ${Date.now()}-${Math.floor(Math.random() * 1000000)}`, { align: 'right' });
             doc.text(`Fecha: ${new Date().toISOString().split('T')[0]}`, { align: 'right' });
             
-            try { doc.image('icono_1.png', 40, 5, { fit: [90, 90] });  } catch (e) {}
+            try { /* doc.image('icono_1.png', 40, 5, { fit: [90, 90] }); */ } catch (e) {}
 
             doc.y = 120;
 
@@ -105,23 +105,29 @@ function generateInvoicePdfBuffer(data) {
                 doc.moveDown(0.5);
                 
                 const startY = doc.y;
-                const leftColX = 45;
-                const rightColX = 310; // Segunda columna alineada a la derecha del centro
+                const leftColX = 40; // Alineado al margen
+                const rightColX = 310; // Segunda columna
                 
-                doc.font(normalFont).fontSize(8.5);
+                doc.font(normalFont).fontSize(9);
 
                 // Renderizar datos izquierda
                 let currentYLeft = startY;
                 dataLeft.forEach(item => {
-                    doc.text(`${item.label} ${item.value}`, leftColX, currentYLeft);
-                    currentYLeft += 12;
+                    // Concatenamos etiqueta y valor
+                    const text = `${item.label} ${item.value}`;
+                    doc.text(text, leftColX, currentYLeft, { width: 260 });
+                    // Calculamos altura real por si el texto hace salto de línea
+                    const height = doc.heightOfString(text, { width: 260 });
+                    currentYLeft += height + 2; 
                 });
 
                 // Renderizar datos derecha
                 let currentYRight = startY;
                 dataRight.forEach(item => {
-                    doc.text(`${item.label} ${item.value}`, rightColX, currentYRight);
-                    currentYRight += 12;
+                    const text = `${item.label} ${item.value}`;
+                    doc.text(text, rightColX, currentYRight, { width: 250 });
+                    const height = doc.heightOfString(text, { width: 250 });
+                    currentYRight += height + 2;
                 });
 
                 // Mover cursor al final de la sección más larga
@@ -150,12 +156,11 @@ function generateInvoicePdfBuffer(data) {
                 ],
                 [
                     { label: 'Régimen Fiscal:', value: data.regimenFiscalNombre || data.regimenFiscal },
-                    // En tu imagen "Empresariales" estaba en una segunda línea, aquí se ajustará solo
                     { label: 'Uso de CFDI:', value: data.usoCFDINombre || data.usoCFDI }
                 ]
             );
             
-            // Añadimos un pequeño espacio extra antes de conceptos
+            // Espacio antes de conceptos
             doc.moveDown(0.5);
             doc.fillColor(fontColor).font(boldFont).fontSize(10).text('CONCEPTOS', 40);
             doc.moveDown(0.2);
@@ -168,9 +173,8 @@ function generateInvoicePdfBuffer(data) {
 
             // --- TABLA DE CONCEPTOS (Estilo Imagen) ---
             const tableTop = doc.y;
-            // Columnas: Clave Prod, Cant, Unidad, Descripción, Valor Unit., IVA, Importe
+            // Columnas ajustadas a la imagen
             const headers = ['Clave Prod', 'Cant', 'Unidad', 'Descripción', 'Valor Unit.', 'IVA', 'Importe'];
-            // Ajuste de anchos para coincidir mejor con la imagen
             const colWidths = [60, 35, 45, 200, 70, 40, 70]; 
             let currentX = 40;
             
@@ -186,7 +190,7 @@ function generateInvoicePdfBuffer(data) {
 
             const rowY = tableTop + 22;
             currentX = 40;
-            const desc = (data.productName || 'Producto/Servicio').substring(0, 75); // Descripción un poco más larga permitida
+            const desc = (data.productName || 'Producto/Servicio').substring(0, 75);
             
             // Datos de la fila
             const rowData = [
@@ -209,7 +213,7 @@ function generateInvoicePdfBuffer(data) {
             let finalY = rowY + 35;
             const totalsX = 380;
             
-            // Línea separadora de totales
+            // Línea separadora
             doc.moveTo(totalsX - 10, finalY).lineTo(doc.page.width - 40, finalY).stroke(primaryColor);
             doc.moveDown(0.5);
             
@@ -226,10 +230,10 @@ function generateInvoicePdfBuffer(data) {
             doc.text('TOTAL:', totalsX, finalY + 35);
             doc.text(`$${totalCompra.toFixed(2)} ${currency}`, totalsX, finalY + 35, { align: 'right' });
 
-            doc.y = finalY + 60; // Mover cursor debajo de los totales
+            doc.y = finalY + 60;
 
             // ======================================================================
-            // === SECCIÓN DE DATOS DE PAGO Y MONEDA (Reacomodada) ===
+            // === SECCIÓN DE DATOS DE PAGO Y MONEDA (Acomodada) ===
             // ======================================================================
             let currentY = doc.y;
             const importeConLetra = numeroALetras(totalCompra, currency);
@@ -237,13 +241,18 @@ function generateInvoicePdfBuffer(data) {
             // Altura de la caja gris
             const boxHeight = currency !== 'MXN' ? 110 : 90; 
 
-            // Fondo gris claro con borde suave
+            // Fondo gris claro
             doc.rect(40, currentY, doc.page.width - 80, boxHeight).fillAndStroke(sectionBgColor, sectionBorderColor);
             doc.fillColor(fontColor).fontSize(8.5);
             
             let textY = currentY + 10;
             let col1X = 50; 
             let col2X = 330; 
+
+            // 1. Importe con letra
+            doc.font(boldFont).text('Importe con letra:', col1X, textY);
+            doc.font(normalFont).text(importeConLetra, col1X + 100, textY, { width: 380 });
+            textY += 25;
 
             // 2. Moneda y Tipo de Cambio
             doc.font(boldFont).text('Moneda:', col1X, textY);
@@ -253,32 +262,26 @@ function generateInvoicePdfBuffer(data) {
                 doc.font(boldFont).text('Tipo de Cambio:', col2X, textY);
                 doc.font(normalFont).text(`1 ${currency} = $${exchangeRateText} MXN`, col2X + 90, textY);
             }
-            
-            textY += 15;
+            textY += 18;
 
-            // 3. Total Pagado y Equivalente (Solo si es moneda extranjera)
+            // 3. Total Pagado y Equivalente
             if (currency !== 'MXN') {
                 doc.font(boldFont).text('Total Pagado:', col1X, textY);
                 doc.font(normalFont).text(`$${totalCompra.toFixed(2)} ${currency}`, col1X + 80, textY);
 
                 doc.font(boldFont).text('Equivalente:', col2X, textY);
                 doc.font(normalFont).text(`$${totalEnPesos} MXN`, col2X + 90, textY);
-                textY += 15;
+                textY += 18;
             }
 
-            // 4. Método y Forma de Pago (En filas separadas para evitar superposición)
-            // Fila: Método
+            // 4. Método y Forma de Pago
             doc.font(boldFont).text('Método de Pago:', col1X, textY);
             const metodoPagoCompleto = `${data.metodoPago} - ${data.metodoPagoNombre || ''}`;
-            doc.font(normalFont).text(metodoPagoCompleto, col1X + 90, textY);
-            
-            // Fila: Forma (Bajamos una línea si está muy apretado o la ponemos a la derecha si cabe)
-            // Para asegurar que quede bien, en este diseño la pondremos a la derecha en la misma línea, 
-            // pero con cuidado del espacio.
+            doc.font(normalFont).text(metodoPagoCompleto, col1X + 90, textY, { width: 190, ellipsis: true });
+
             doc.font(boldFont).text('Forma de Pago:', col2X, textY);
             const formaPagoCompleta = `${data.formaPago} - ${data.formaPagoNombre || ''}`;
-            // Cortamos el texto si es demasiado largo para que no se encime
-            doc.font(normalFont).text(formaPagoCompleta.substring(0, 35), col2X + 90, textY);
+            doc.font(normalFont).text(formaPagoCompleta, col2X + 90, textY, { width: 150, ellipsis: true });
 
 
             // ======================================================================
