@@ -134,19 +134,29 @@ function main() {
     };
 
     // ==========================================================
-    // === 5. LÓGICA DE MONEDA Y BANDERAS ===
+    // === 5. LÓGICA DE MONEDA Y BANDERAS (ACTUALIZADO) ===
     // ==========================================================
     
-    function getFlagEmoji(currency) {
-        const map = { 
-            'MXN': '🇲🇽', 'USD': '🇺🇸', 'CAD': '🇨🇦',
-            'EUR': '🇪🇺', 'GBP': '🇬🇧', 'JPY': '🇯🇵',
-            'ARS': '🇦🇷', 'COP': '🇨🇴', 'BRL': '🇧🇷', 'CLP': '🇨🇱', 'PEN': '🇵🇪', 'UYU': '🇺🇾',
-            'BOB': '🇧🇴', 'VES': '🇻🇪', 'CRC': '🇨🇷', 'GTQ': '🇬🇹'
+    // Función para obtener IMAGEN HTML de la bandera (Soluciona problema de Windows)
+    function getFlagImg(currency) {
+        // Mapeo de moneda a código de país (ISO 2 letras) para flagcdn
+        const countryCodes = { 
+            'MXN': 'mx', 'USD': 'us', 'CAD': 'ca',
+            'EUR': 'eu', 'GBP': 'gb', 'JPY': 'jp',
+            'ARS': 'ar', 'COP': 'co', 'BRL': 'br', 'CLP': 'cl', 'PEN': 'pe', 'UYU': 'uy',
+            'BOB': 'bo', 'VES': 've', 'CRC': 'cr', 'GTQ': 'gt', 'HNL': 'hn', 'NIO': 'ni', 'DOP': 'do',
+            'AUD': 'au', 'CNY': 'cn', 'INR': 'in'
         };
-        return map[currency] || '🌐';
+        
+        const code = countryCodes[currency];
+        if(code) {
+            // Devuelve una etiqueta IMG
+            return `<img src="https://flagcdn.com/24x18/${code}.png" alt="${currency}" style="width:20px; margin-right:8px; vertical-align:middle;">`;
+        }
+        return '<span style="margin-right:8px;">🌐</span>';
     }
 
+    // Función para cambiar moneda (PERSISTENTE)
     async function changeUserCurrency(newCurrencyCode) {
         showAppToast(`Cambiando moneda a ${newCurrencyCode}...`, 'info');
         try {
@@ -162,12 +172,12 @@ function main() {
             renderCart(); 
             
             const flagEl = document.getElementById('current-currency-flag');
-            if(flagEl) flagEl.textContent = getFlagEmoji(userCurrency);
+            // IMPORTANTE: Usar innerHTML porque ahora devolvemos una imagen, no texto
+            if(flagEl) flagEl.innerHTML = getFlagImg(userCurrency);
 
-            // Forzar recarga de PayPal:
-            // Borramos la referencia de la moneda actual para que loadPayPalScript sepa que debe recargar
-            currentPayPalCurrency = ''; 
-            // Limpiamos el contenedor visualmente
+            // Resetear PayPal
+            isPayPalScriptLoaded = false; 
+            currentPayPalCurrency = '';
             if(checkoutContainer) checkoutContainer.innerHTML = ''; 
             
             showAppToast(`Moneda actualizada a ${userCurrency}`, 'success');
@@ -180,7 +190,7 @@ function main() {
     window.triggerCurrencyChange = (code) => changeUserCurrency(code);
 
     // ==========================================================
-    // === 6. RENDERIZADO DEL MENÚ ===
+    // === 6. RENDERIZADO DEL MENÚ (CON IMÁGENES DE BANDERAS) ===
     // ==========================================================
     function renderNavMenu(sessionData) {
         let staticLinks = `
@@ -189,28 +199,31 @@ function main() {
             <li class="nav-item"><a class="nav-link" href="#productos">Productos</a></li>
         `;
 
+        // Usamos getFlagImg para generar las imágenes dentro de los botones
         const currencySelectorHtml = `
             <li class="nav-item dropdown ms-lg-2">
-                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" title="Cambiar Moneda">
-                    <span id="current-currency-flag" style="font-size: 1.2rem;">${getFlagEmoji(userCurrency)}</span>
+                <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown" title="Cambiar Moneda">
+                    <span id="current-currency-flag">${getFlagImg(userCurrency)}</span>
                 </a>
-                <ul class="dropdown-menu dropdown-menu-dark" style="min-width: auto; max-height: 300px; overflow-y: auto;">
+                <ul class="dropdown-menu dropdown-menu-dark" style="min-width: 220px; max-height: 400px; overflow-y: auto;">
                     <li><h6 class="dropdown-header text-warning">Norteamérica</h6></li>
-                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('MXN')">🇲🇽 MXN</button></li>
-                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('USD')">🇺🇸 USD</button></li>
-                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('CAD')">🇨🇦 CAD</button></li>
+                    <li><button class="dropdown-item d-flex align-items-center" onclick="window.triggerCurrencyChange('MXN')">${getFlagImg('MXN')} MXN (Peso Mexicano)</button></li>
+                    <li><button class="dropdown-item d-flex align-items-center" onclick="window.triggerCurrencyChange('USD')">${getFlagImg('USD')} USD (Dólar EUA)</button></li>
+                    <li><button class="dropdown-item d-flex align-items-center" onclick="window.triggerCurrencyChange('CAD')">${getFlagImg('CAD')} CAD (Dólar Canadiense)</button></li>
+                    
                     <li><hr class="dropdown-divider"></li>
                     <li><h6 class="dropdown-header text-warning">Latinoamérica</h6></li>
-                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('ARS')">🇦🇷 ARS</button></li>
-                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('COP')">🇨🇴 COP</button></li>
-                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('BRL')">🇧🇷 BRL</button></li>
-                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('CLP')">🇨🇱 CLP</button></li>
-                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('PEN')">🇵🇪 PEN</button></li>
+                    <li><button class="dropdown-item d-flex align-items-center" onclick="window.triggerCurrencyChange('ARS')">${getFlagImg('ARS')} ARS (Peso Argentino)</button></li>
+                    <li><button class="dropdown-item d-flex align-items-center" onclick="window.triggerCurrencyChange('COP')">${getFlagImg('COP')} COP (Peso Colombiano)</button></li>
+                    <li><button class="dropdown-item d-flex align-items-center" onclick="window.triggerCurrencyChange('BRL')">${getFlagImg('BRL')} BRL (Real Brasileño)</button></li>
+                    <li><button class="dropdown-item d-flex align-items-center" onclick="window.triggerCurrencyChange('CLP')">${getFlagImg('CLP')} CLP (Peso Chileno)</button></li>
+                    <li><button class="dropdown-item d-flex align-items-center" onclick="window.triggerCurrencyChange('PEN')">${getFlagImg('PEN')} PEN (Sol Peruano)</button></li>
+                    
                     <li><hr class="dropdown-divider"></li>
                     <li><h6 class="dropdown-header text-warning">Europa & Mundo</h6></li>
-                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('EUR')">🇪🇺 EUR</button></li>
-                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('GBP')">🇬🇧 GBP</button></li>
-                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('JPY')">🇯🇵 JPY</button></li>
+                    <li><button class="dropdown-item d-flex align-items-center" onclick="window.triggerCurrencyChange('EUR')">${getFlagImg('EUR')} EUR (Euro)</button></li>
+                    <li><button class="dropdown-item d-flex align-items-center" onclick="window.triggerCurrencyChange('GBP')">${getFlagImg('GBP')} GBP (Libra Esterlina)</button></li>
+                    <li><button class="dropdown-item d-flex align-items-center" onclick="window.triggerCurrencyChange('JPY')">${getFlagImg('JPY')} JPY (Yen Japonés)</button></li>
                 </ul>
             </li>
         `;
