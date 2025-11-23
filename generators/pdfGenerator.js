@@ -78,7 +78,7 @@ function generateInvoicePdfBuffer(data) {
             let exchangeRateVal = parseFloat(data.TipoCambio);
             if (isNaN(exchangeRateVal)) exchangeRateVal = 1;
 
-            // Corregir tasa invertida visualmente
+            // Corregir tasa invertida visualmente (ej: mostrar 18.50 en lugar de 0.05)
             if ((currency === 'USD' || currency === 'EUR' || currency === 'GBP' || currency === 'CAD') && exchangeRateVal < 1) {
                 exchangeRateVal = 1 / exchangeRateVal;
             }
@@ -92,7 +92,7 @@ function generateInvoicePdfBuffer(data) {
             doc.text(`Folio Fiscal (UUID): ${Date.now()}-${Math.floor(Math.random() * 1000000)}`, { align: 'right' });
             doc.text(`Fecha: ${new Date().toISOString().split('T')[0]}`, { align: 'right' });
             
-            // Logo (Opcional)
+            // Logo (Opcional - descomentar si tienes la imagen)
             try { /* doc.image('icono_1.png', 40, 5, { fit: [90, 90] }); */ } catch (e) {}
 
             doc.y = 120;
@@ -141,19 +141,22 @@ function generateInvoicePdfBuffer(data) {
             doc.text('IVA (16%):', totalsX, doc.y).text(`$${iva.toFixed(2)}`, { align: 'right' });
             doc.moveTo(totalsX - 10, doc.y + 5).lineTo(doc.page.width - 40, doc.y + 5).stroke(primaryColor);
             doc.moveDown(0.5);
+            
+            // Total Principal (en la moneda de pago)
             doc.font(boldFont).fontSize(12).fillColor(primaryColor)
                 .text('TOTAL:', totalsX, doc.y).text(`$${totalCompra.toFixed(2)} ${currency}`, { align: 'right' });
 
             doc.y += 25;
 
             // ======================================================================
-            // === BLOQUE DE DATOS DE PAGO Y MONEDA (Corregido) ===
+            // === BLOQUE DE DATOS DE PAGO Y MONEDA (Actualizado) ===
             // ======================================================================
             let currentY = doc.y;
             const importeConLetra = numeroALetras(totalCompra, currency);
             
-            // Altura dinámica del bloque gris según si hay conversión o no
-            const boxHeight = currency !== 'MXN' ? 85 : 65; 
+            // Altura dinámica del bloque gris
+            // Si no es MXN, necesitamos más espacio para mostrar las líneas extra
+            const boxHeight = currency !== 'MXN' ? 95 : 70; 
 
             doc.rect(40, currentY, doc.page.width - 80, boxHeight).fillAndStroke(sectionBgColor, sectionBorderColor);
             doc.fillColor(fontColor).fontSize(9);
@@ -179,11 +182,13 @@ function generateInvoicePdfBuffer(data) {
 
             // Fila 3: Total Pagado y Equivalente (SOLO SI NO ES MXN)
             if (currency !== 'MXN') {
+                // --- CAMBIO SOLICITADO: Agregar "Total Pagado" en divisa ---
                 doc.font(boldFont).text('Total Pagado:', col1X, textY);
                 doc.font(normalFont).text(`$${totalCompra.toFixed(2)} ${currency}`, col1X + 80, textY);
+                // ----------------------------------------------------------
 
-                doc.font(boldFont).text('Equivalente:', col2X, textY);
-                doc.font(normalFont).text(`$${totalEnPesos} MXN`, col2X + 70, textY);
+                doc.font(boldFont).text('Equivalente en Pesos:', col2X, textY);
+                doc.font(normalFont).text(`$${totalEnPesos} MXN`, col2X + 110, textY);
                 textY += 15;
             }
 
