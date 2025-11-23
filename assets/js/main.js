@@ -16,8 +16,11 @@ function main() {
     
     // --- CONFIGURACIÓN DE PAYPAL ---
     const PAYPAL_CLIENT_ID = 'AT16Qo7wfSCrBn9YBDsi-GfsTTI4ce411w4BM2GMNNM-iaVRajGBBC_VfvQFiNbiYDk4IzlJ1sXgigLc';
-    // Control para evitar recargas innecesarias
-    let currentPayPalCurrency = ''; 
+    let isPayPalScriptLoaded = false; 
+    let currentPayPalCurrency = '';
+
+    // Lista de monedas que PayPal SÍ acepta (Oficial)
+    const PAYPAL_SUPPORTED = ['MXN', 'USD', 'CAD', 'EUR', 'GBP', 'JPY', 'AUD', 'BRL'];
 
     // Elementos del DOM
     let cartCountEl, cartItemsContainer, cartTotalEl, checkoutContainer, paymentStatusEl, cartModalEl, cartModal, dynamicNavLinks, toastEl, toast, toastBodyEl;
@@ -134,29 +137,23 @@ function main() {
     };
 
     // ==========================================================
-    // === 5. LÓGICA DE MONEDA Y BANDERAS (ACTUALIZADO) ===
+    // === 5. LÓGICA DE MONEDA Y BANDERAS ===
     // ==========================================================
     
-    // Función para obtener IMAGEN HTML de la bandera (Soluciona problema de Windows)
-    function getFlagImg(currency) {
-        // Mapeo de moneda a código de país (ISO 2 letras) para flagcdn
+    function getFlagHtml(currency) {
         const countryCodes = { 
             'MXN': 'mx', 'USD': 'us', 'CAD': 'ca',
             'EUR': 'eu', 'GBP': 'gb', 'JPY': 'jp',
             'ARS': 'ar', 'COP': 'co', 'BRL': 'br', 'CLP': 'cl', 'PEN': 'pe', 'UYU': 'uy',
-            'BOB': 'bo', 'VES': 've', 'CRC': 'cr', 'GTQ': 'gt', 'HNL': 'hn', 'NIO': 'ni', 'DOP': 'do',
-            'AUD': 'au', 'CNY': 'cn', 'INR': 'in'
+            'BOB': 'bo', 'VES': 've', 'CRC': 'cr', 'GTQ': 'gt'
         };
-        
         const code = countryCodes[currency];
-        if(code) {
-            // Devuelve una etiqueta IMG
-            return `<img src="https://flagcdn.com/24x18/${code}.png" alt="${currency}" style="width:20px; margin-right:8px; vertical-align:middle;">`;
+        if (code) {
+            return `<img src="https://flagcdn.com/20x15/${code}.png" alt="${currency}" style="margin-right: 5px; vertical-align: middle;">`;
         }
-        return '<span style="margin-right:8px;">🌐</span>';
+        return '🌐';
     }
 
-    // Función para cambiar moneda (PERSISTENTE)
     async function changeUserCurrency(newCurrencyCode) {
         showAppToast(`Cambiando moneda a ${newCurrencyCode}...`, 'info');
         try {
@@ -172,10 +169,9 @@ function main() {
             renderCart(); 
             
             const flagEl = document.getElementById('current-currency-flag');
-            // IMPORTANTE: Usar innerHTML porque ahora devolvemos una imagen, no texto
-            if(flagEl) flagEl.innerHTML = getFlagImg(userCurrency);
+            if(flagEl) flagEl.innerHTML = getFlagHtml(userCurrency);
 
-            // Resetear PayPal
+            // Reiniciar PayPal para recargar con la nueva moneda (si aplica)
             isPayPalScriptLoaded = false; 
             currentPayPalCurrency = '';
             if(checkoutContainer) checkoutContainer.innerHTML = ''; 
@@ -190,7 +186,7 @@ function main() {
     window.triggerCurrencyChange = (code) => changeUserCurrency(code);
 
     // ==========================================================
-    // === 6. RENDERIZADO DEL MENÚ (CON IMÁGENES DE BANDERAS) ===
+    // === 6. RENDERIZADO DEL MENÚ ===
     // ==========================================================
     function renderNavMenu(sessionData) {
         let staticLinks = `
@@ -199,31 +195,28 @@ function main() {
             <li class="nav-item"><a class="nav-link" href="#productos">Productos</a></li>
         `;
 
-        // Usamos getFlagImg para generar las imágenes dentro de los botones
         const currencySelectorHtml = `
             <li class="nav-item dropdown ms-lg-2">
-                <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown" title="Cambiar Moneda">
-                    <span id="current-currency-flag">${getFlagImg(userCurrency)}</span>
+                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" title="Cambiar Moneda">
+                    <span id="current-currency-flag" style="font-size: 1.2rem;">${getFlagHtml(userCurrency)}</span>
                 </a>
-                <ul class="dropdown-menu dropdown-menu-dark" style="min-width: 220px; max-height: 400px; overflow-y: auto;">
+                <ul class="dropdown-menu dropdown-menu-dark" style="min-width: auto; max-height: 300px; overflow-y: auto;">
                     <li><h6 class="dropdown-header text-warning">Norteamérica</h6></li>
-                    <li><button class="dropdown-item d-flex align-items-center" onclick="window.triggerCurrencyChange('MXN')">${getFlagImg('MXN')} MXN (Peso Mexicano)</button></li>
-                    <li><button class="dropdown-item d-flex align-items-center" onclick="window.triggerCurrencyChange('USD')">${getFlagImg('USD')} USD (Dólar EUA)</button></li>
-                    <li><button class="dropdown-item d-flex align-items-center" onclick="window.triggerCurrencyChange('CAD')">${getFlagImg('CAD')} CAD (Dólar Canadiense)</button></li>
-                    
+                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('MXN')">${getFlagHtml('MXN')} MXN (Peso Mexicano)</button></li>
+                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('USD')">${getFlagHtml('USD')} USD (Dólar EUA)</button></li>
+                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('CAD')">${getFlagHtml('CAD')} CAD (Dólar Canadiense)</button></li>
                     <li><hr class="dropdown-divider"></li>
                     <li><h6 class="dropdown-header text-warning">Latinoamérica</h6></li>
-                    <li><button class="dropdown-item d-flex align-items-center" onclick="window.triggerCurrencyChange('ARS')">${getFlagImg('ARS')} ARS (Peso Argentino)</button></li>
-                    <li><button class="dropdown-item d-flex align-items-center" onclick="window.triggerCurrencyChange('COP')">${getFlagImg('COP')} COP (Peso Colombiano)</button></li>
-                    <li><button class="dropdown-item d-flex align-items-center" onclick="window.triggerCurrencyChange('BRL')">${getFlagImg('BRL')} BRL (Real Brasileño)</button></li>
-                    <li><button class="dropdown-item d-flex align-items-center" onclick="window.triggerCurrencyChange('CLP')">${getFlagImg('CLP')} CLP (Peso Chileno)</button></li>
-                    <li><button class="dropdown-item d-flex align-items-center" onclick="window.triggerCurrencyChange('PEN')">${getFlagImg('PEN')} PEN (Sol Peruano)</button></li>
-                    
+                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('ARS')">${getFlagHtml('ARS')} ARS (Peso Argentino)</button></li>
+                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('COP')">${getFlagHtml('COP')} COP (Peso Colombiano)</button></li>
+                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('BRL')">${getFlagHtml('BRL')} BRL (Real Brasileño)</button></li>
+                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('CLP')">${getFlagHtml('CLP')} CLP (Peso Chileno)</button></li>
+                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('PEN')">${getFlagHtml('PEN')} PEN (Sol Peruano)</button></li>
                     <li><hr class="dropdown-divider"></li>
                     <li><h6 class="dropdown-header text-warning">Europa & Mundo</h6></li>
-                    <li><button class="dropdown-item d-flex align-items-center" onclick="window.triggerCurrencyChange('EUR')">${getFlagImg('EUR')} EUR (Euro)</button></li>
-                    <li><button class="dropdown-item d-flex align-items-center" onclick="window.triggerCurrencyChange('GBP')">${getFlagImg('GBP')} GBP (Libra Esterlina)</button></li>
-                    <li><button class="dropdown-item d-flex align-items-center" onclick="window.triggerCurrencyChange('JPY')">${getFlagImg('JPY')} JPY (Yen Japonés)</button></li>
+                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('EUR')">${getFlagHtml('EUR')} EUR (Euro)</button></li>
+                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('GBP')">${getFlagHtml('GBP')} GBP (Libra Esterlina)</button></li>
+                    <li><button class="dropdown-item" onclick="window.triggerCurrencyChange('JPY')">${getFlagHtml('JPY')} JPY (Yen Japonés)</button></li>
                 </ul>
             </li>
         `;
@@ -298,55 +291,59 @@ function main() {
     }
 
     // ==========================================================
-    // === 7. CARGA DINÁMICA DE PAYPAL (SOLUCIÓN PAGO MONEDA) ===
+    // === 7. CARGA DINÁMICA DE PAYPAL (LÓGICA CORREGIDA) ===
     // ==========================================================
-    function loadPayPalScript(currency, onReadyCallback) {
-        // 1. Si la moneda es la misma que ya tenemos cargada Y el objeto global existe
-        if (isPayPalScriptLoaded && currentPayPalCurrency === currency && window.paypal) {
+    function loadPayPalScript(userSelectedCurrency, onReadyCallback) {
+        // LÓGICA DE FALLBACK: 
+        // Si la moneda NO es soportada por PayPal, usamos MXN para la transacción
+        // pero en la interfaz el usuario sigue viendo su moneda local.
+        let scriptCurrency = userSelectedCurrency;
+        
+        if (!PAYPAL_SUPPORTED.includes(userSelectedCurrency)) {
+            console.warn(`La moneda ${userSelectedCurrency} no es soportada por PayPal. Usando MXN para la pasarela.`);
+            scriptCurrency = 'MXN';
+        }
+
+        // Evitar recargas innecesarias si la moneda del script no cambia
+        if (isPayPalScriptLoaded && currentPayPalCurrency === scriptCurrency && window.paypal) {
             onReadyCallback();
             return;
         }
 
-        // 2. Limpieza profunda si cambiamos de moneda o hubo error
-        // Eliminamos el script anterior del DOM para que no haya conflictos
+        // Limpieza previa
         const existingScript = document.querySelector('script[src*="paypal.com/sdk/js"]');
         if (existingScript) {
             existingScript.parentNode.removeChild(existingScript);
         }
-        // Eliminamos el objeto global para asegurar una recarga limpia
         window.paypal = undefined;
         
-        // Limpiamos el contenedor visualmente
         if(checkoutContainer) checkoutContainer.innerHTML = '<div class="text-center p-3"><span class="spinner-border spinner-border-sm text-warning"></span> Cargando método de pago...</div>';
         if(paymentStatusEl) paymentStatusEl.innerHTML = '';
 
-        // 3. Crear y cargar el nuevo script con la moneda correcta
         const script = document.createElement('script');
-        script.src = `https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=${currency}`;
+        script.src = `https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=${scriptCurrency}`;
         script.async = true;
         
         script.onload = () => {
-            console.log(`✅ PayPal SDK cargado para ${currency}`);
+            console.log(`✅ PayPal SDK cargado para ${scriptCurrency}`);
             isPayPalScriptLoaded = true;
-            currentPayPalCurrency = currency;
+            currentPayPalCurrency = scriptCurrency;
             onReadyCallback();
         };
         
         script.onerror = () => {
             console.error("Error cargando PayPal SDK");
-            if(checkoutContainer) checkoutContainer.innerHTML = '<p class="text-center text-danger">Error de conexión con PayPal. Recarga la página.</p>';
+            if(checkoutContainer) checkoutContainer.innerHTML = '<p class="text-center text-danger">Error de conexión con PayPal.</p>';
         };
         
         document.body.appendChild(script);
     }
 
     // ==========================================================
-    // === 8. RENDERIZADO DE BOTONES DE PAGO ===
+    // === 8. RENDERIZADO DE BOTONES DE PAGO (LÓGICA CORREGIDA) ===
     // ==========================================================
     function renderCheckoutSection(sessionData) {
         if(!checkoutContainer) return;
-        
-        // IMPORTANTE: Limpiar el contenedor para evitar conflictos de botones duplicados
         checkoutContainer.innerHTML = ''; 
         if(paymentStatusEl) paymentStatusEl.innerHTML = '';
         
@@ -359,77 +356,87 @@ function main() {
         }
 
         if (sessionData.loggedIn) {
-            // Verificamos de nuevo si paypal existe antes de intentar renderizar
             if (window.paypal) {
-                try {
-                    window.paypal.Buttons({
-                        createOrder: async () => {
-                            try {
-                                const response = await fetch('/api/orders', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ 
-                                        totalAmount: totalConverted.toFixed(2),
-                                        currencyCode: userCurrency 
-                                    })
-                                });
-                                if (!response.ok) { const txt = await response.text(); throw new Error(txt); }
-                                const orderData = await response.json();
-                                return orderData.id;
-                            } catch (error) {
-                                console.error("CreateOrder Error:", error);
-                                if(paymentStatusEl) paymentStatusEl.innerHTML = `<div class="alert alert-danger small">Error al crear orden: ${error.message}</div>`;
-                                return Promise.reject(error);
-                            }
-                        },
-                        onApprove: (data) => {
-                            paymentStatusEl.innerHTML = `<div class="alert alert-info small">Procesando pago...</div>`;
-                            return fetch(`/api/orders/${data.orderID}/capture`, { 
-                                method: 'POST', headers: { 'Content-Type': 'application/json' }
-                            })
-                            .then(res => res.json())
-                            .then(captureData => {
-                                const productNames = cart.map(item => item.name).join(', ');
-                                const payerName = captureData.payer.name.given_name + ' ' + captureData.payer.name.surname;
-                                const purchaseData = {
-                                    userEmail: sessionData.user.email,
-                                    cardName: payerName,
-                                    paypalTransactionId: captureData.id,
-                                    productName: productNames,
-                                    price: totalConverted.toFixed(2), // GUARDAR PRECIO PAGADO EN LA MONEDA
-                                    currency: userCurrency // GUARDAR MONEDA
-                                };
-                                return fetch('/process-purchase', { 
-                                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(purchaseData) 
-                                });
-                            })
-                            .then(res => res.json())
-                            .then(serverData => {
-                                if (serverData.success) {
-                                    showAppToast('¡Compra exitosa! Revisa tu correo.', 'success');
-                                    cart = [];
-                                    renderCart();
-                                    fetch('/my-purchases').then(res => res.json()).then(p => userPurchases = p);
-                                    setTimeout(() => cartModal.hide(), 2000);
-                                } else { throw new Error(serverData.message); }
-                            })
-                            .catch(err => {
-                                console.error(err);
-                                paymentStatusEl.innerHTML = `<div class="alert alert-danger small">Error al registrar compra. Contáctanos.</div>`;
-                            });
-                        },
-                        onError: (err) => {
-                            console.error("PayPal Window Error:", err);
-                            paymentStatusEl.innerHTML = `<div class="alert alert-warning small">El pago no se completó.</div>`;
-                        }
-                    }).render(checkoutContainer);
-                } catch(e) {
-                     console.error("Error al renderizar botón PayPal:", e);
-                     // Si falla el renderizado, forzamos recarga la próxima vez
-                     currentPayPalCurrency = ''; 
+                // DETERMINAR MONEDA DE TRANSACCIÓN
+                // Si la moneda del usuario NO está soportada, cobramos en MXN
+                let transactionCurrency = userCurrency;
+                let transactionAmount = totalConverted;
+
+                if (!PAYPAL_SUPPORTED.includes(userCurrency)) {
+                    transactionCurrency = 'MXN';
+                    transactionAmount = totalMXN;
+                    
+                    // Aviso al usuario
+                    paymentStatusEl.innerHTML = `<div class="alert alert-info small mb-2">
+                        <i class="bi bi-info-circle"></i> El cobro se realizará en <strong>Pesos Mexicanos (MXN)</strong> ya que PayPal no soporta ${userCurrency} directamente. Tu banco hará la conversión.
+                    </div>`;
                 }
+
+                window.paypal.Buttons({
+                    createOrder: async () => {
+                        try {
+                            const response = await fetch('/api/orders', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ 
+                                    // ENVIAMOS LA MONEDA COMPATIBLE (USD, MXN, etc.)
+                                    totalAmount: transactionAmount.toFixed(2),
+                                    currencyCode: transactionCurrency 
+                                })
+                            });
+                            if (!response.ok) { const txt = await response.text(); throw new Error(txt); }
+                            const orderData = await response.json();
+                            return orderData.id;
+                        } catch (error) {
+                            console.error("CreateOrder Error:", error);
+                            if(paymentStatusEl) paymentStatusEl.innerHTML += `<div class="alert alert-danger small">Error al crear orden: ${error.message}</div>`;
+                            return Promise.reject(error);
+                        }
+                    },
+                    onApprove: (data) => {
+                        paymentStatusEl.innerHTML = `<div class="alert alert-info small">Procesando pago...</div>`;
+                        return fetch(`/api/orders/${data.orderID}/capture`, { 
+                            method: 'POST', headers: { 'Content-Type': 'application/json' }
+                        })
+                        .then(res => res.json())
+                        .then(captureData => {
+                            const productNames = cart.map(item => item.name).join(', ');
+                            const payerName = captureData.payer.name.given_name + ' ' + captureData.payer.name.surname;
+                            const purchaseData = {
+                                userEmail: sessionData.user.email,
+                                cardName: payerName,
+                                paypalTransactionId: captureData.id,
+                                productName: productNames,
+                                // Guardamos lo que realmente se pagó
+                                price: transactionAmount.toFixed(2),
+                                currency: transactionCurrency
+                            };
+                            return fetch('/process-purchase', { 
+                                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(purchaseData) 
+                            });
+                        })
+                        .then(res => res.json())
+                        .then(serverData => {
+                            if (serverData.success) {
+                                showAppToast('¡Compra exitosa!', 'success');
+                                cart = [];
+                                renderCart();
+                                fetch('/my-purchases').then(res => res.json()).then(p => userPurchases = p);
+                                setTimeout(() => cartModal.hide(), 2000);
+                            } else { throw new Error(serverData.message); }
+                        })
+                        .catch(err => {
+                            console.error(err);
+                            paymentStatusEl.innerHTML = `<div class="alert alert-danger small">Error al registrar compra. Contáctanos.</div>`;
+                        });
+                    },
+                    onError: (err) => {
+                        console.error("PayPal Error:", err);
+                        paymentStatusEl.innerHTML = `<div class="alert alert-warning small">El pago no se completó.</div>`;
+                    }
+                }).render(checkoutContainer);
             } else {
-                 checkoutContainer.innerHTML = '<p class="text-danger text-center">Error: PayPal no cargó correctamente. Cierra y abre el carrito.</p>';
+                 checkoutContainer.innerHTML = '<p class="text-danger text-center">Error cargando PayPal. Intenta recargar.</p>';
             }
         } else {
             const loginBtn = document.createElement('button');
@@ -490,9 +497,7 @@ function main() {
     // === 10. LOGICA DE PRODUCTOS Y EVENTOS ===
     // ==========================================================
 
-    // ESTA FUNCIÓN ES LA CLAVE: Se llama al cargar productos para reactivar botones
     function bindProductCardEvents() {
-        // 1. Botones "Agregar al Carrito"
         document.querySelectorAll('.add-to-cart').forEach(button => {
             button.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -520,7 +525,6 @@ function main() {
             });
         });
 
-        // 2. Botones "Ver PDF" (Vista Previa)
         document.querySelectorAll('.view-pdf-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -535,7 +539,6 @@ function main() {
             });
         });
 
-        // 3. Botones "Reseñas"
         document.querySelectorAll('.view-product-details').forEach(el => {
             el.addEventListener('click', (e) => {
                 if (e.target.closest('button.add-to-cart')) return;
@@ -566,7 +569,6 @@ function main() {
                 const starsHtml = avgRating > 0 ? renderStars(avgRating) : '<span class="text-muted small">Sin reseñas</span>';
                 
                 const price = parseFloat(p.price) || 0;
-                // PRECIO DINAMICO
                 const displayPrice = price * conversionRate; 
 
                 const isPdfProduct = p.pdf_url && p.pdf_url !== 'null';
@@ -602,9 +604,7 @@ function main() {
                 else productosContainer.innerHTML += itemHtml;
             });
 
-            // ¡IMPORTANTE! Volver a asignar eventos a los nuevos botones
             bindProductCardEvents();
-            
             return true;
         } catch (error) {
             console.error("Error al cargar productos:", error);
@@ -629,13 +629,11 @@ function main() {
     // ==========================================================
 
     function initializeStaticEventListeners() {
-        // Controles PDF (estáticos, no se borran)
         prevPageBtn.addEventListener('click', () => { if (pageNum > 1) { pageNum--; queueRenderPage(pageNum); } });
         nextPageBtn.addEventListener('click', () => { if (pageNum < pdfDoc.numPages) { pageNum++; queueRenderPage(pageNum); } });
         zoomInBtn.addEventListener('click', () => { if (currentScale < 3.0) { currentScale += 0.25; renderPage(pageNum); } });
         zoomOutBtn.addEventListener('click', () => { if (currentScale > 0.5) { currentScale -= 0.25; renderPage(pageNum); } });
         
-        // Eventos iniciales
         addCartEventListeners();
     }
 
@@ -662,23 +660,19 @@ function main() {
         });
         pageNumEl.textContent = num;
     };
-
     function showAlreadyPurchasedModal(name) { purchasedProductNameEl.textContent = name; purchasedModal.show(); }
-    
     async function fetchAndRenderReviews(id) {
         const c = document.getElementById('review-list-container'); c.innerHTML = 'Cargando...';
         try { const r = await(await fetch(`/api/products/${id}/reviews`)).json(); 
         c.innerHTML = r.length ? r.map(v => `<div class="mb-3 p-3 bg-dark rounded"><strong>${v.user_name}</strong> ${renderStars(v.rating)}<p class="small text-muted">${new Date(v.created_at).toLocaleDateString()}</p><p>${v.comment}</p></div>`).join('') : 'Sin reseñas.';
         } catch(e) { c.innerHTML = 'Error cargando reseñas.'; }
     }
-    
     async function handleReviewSubmit(e, id) {
         e.preventDefault(); const btn = e.target.querySelector('button'); btn.disabled=true;
         try { const res = await fetch(`/api/products/${id}/reviews`, {method:'POST', body: new FormData(e.target)});
         const d = await res.json(); if(d.success) { showAppToast('Reseña enviada', 'success'); e.target.reset(); fetchAndRenderReviews(id); } else showAppToast(d.message, 'error');
         } catch(err) { showAppToast('Error de conexión', 'error'); } finally { btn.disabled=false; }
     }
-    
     async function openProductModal(id) {
         const p = allProducts.find(x => x.id == id); if(!p) return;
         document.getElementById('product-detail-title').textContent = p.name;
@@ -704,10 +698,7 @@ function main() {
 
     async function startPage() {
         try {
-            // 1. Recuperar preferencia guardada
             const storedCurrency = localStorage.getItem('selected_currency');
-            
-            // 2. Construir URL de fetch
             let currencyUrl = '/api/location-currency';
             if (storedCurrency) {
                 currencyUrl += `?currency=${storedCurrency}`; 
@@ -720,14 +711,14 @@ function main() {
             const sessionData = await sessionRes.json();
             const locData = await locRes.json();
 
-            // 3. Establecer moneda inicial
             userCurrency = locData.currencyCode || 'MXN';
             conversionRate = locData.conversionRate || 1;
 
+            // Renderizar menú con la moneda ya cargada
             renderNavMenu(sessionData);
+            
             loadCartFromStorage();
             
-            // Carga inicial de productos + asignación de eventos
             await loadAllProducts(); 
             renderCart();
             initializeStaticEventListeners();
@@ -742,6 +733,7 @@ function main() {
                     fetch('/check-session')
                         .then(r => r.json())
                         .then(sData => {
+                            // Cargar script con la moneda correcta (o fallback a MXN si no es soportada)
                             loadPayPalScript(userCurrency, () => {
                                 renderCheckoutSection(sData);
                             });
